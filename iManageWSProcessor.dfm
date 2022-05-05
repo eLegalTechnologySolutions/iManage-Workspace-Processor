@@ -38,7 +38,6 @@ object fiManWSProcessor: TfiManWSProcessor
     Width = 377
     Height = 21
     TabOrder = 2
-    Text = 'l3BpRBkCXzi/Pm11bxMY4VEPSIAkojdUy32kgPaVaTbsobrq35F60lOAWgj/38+F'
   end
   object Edittoken_type: TEdit
     Left = 448
@@ -46,7 +45,6 @@ object fiManWSProcessor: TfiManWSProcessor
     Width = 121
     Height = 21
     TabOrder = 3
-    Text = 'Bearer'
   end
   object MemoContent2: TMemo
     Left = 728
@@ -62,7 +60,7 @@ object fiManWSProcessor: TfiManWSProcessor
   object iManageSQLConn: TUniConnection
     ProviderName = 'SQL Server'
     Port = 1433
-    Database = 'WSC_COPY'
+    Database = 'WSC'
     Username = 'sa'
     Server = 'EUIMANSQL01.INCEGD.COM'
     Connected = True
@@ -93,7 +91,11 @@ object fiManWSProcessor: TfiManWSProcessor
       'select * '
       'from Staging'
       'where FolderId is null'
-      'and Category = '#39'CLIENT'#39)
+      'and Category = '#39'CLIENT'#39
+      'and Wsid is not null'
+      'and C1Alias is not null'
+      'and C5Alias is not null'
+      'and Default_Security_Group is not null')
     Left = 312
     Top = 128
   end
@@ -103,7 +105,12 @@ object fiManWSProcessor: TfiManWSProcessor
       'select * '
       'from Staging'
       'where FolderId is null'
-      'and Category = '#39'CLIENT'#39)
+      'and Category = '#39'MATTER'#39
+      'and Wsid is not null'
+      'and C1Alias is not null'
+      'and C2Alias is not null'
+      'and C5Alias is not null'
+      'and Default_Security_Group is not null')
     Left = 416
     Top = 128
   end
@@ -253,7 +260,7 @@ object fiManWSProcessor: TfiManWSProcessor
     Accept = '*/*'
     AcceptCharset = 'UTF-8, *;q=0.8'
     AcceptEncoding = 'gzip, deflate, br'
-    BaseURL = 'https://euimancontrol.incegd.com/'
+    BaseURL = 'https://imancontrol.incegd.com/'
     ContentType = 'application/json'
     Params = <>
     HandleRedirects = True
@@ -297,32 +304,23 @@ object fiManWSProcessor: TfiManWSProcessor
     Params = <>
     HandleRedirects = True
     RaiseExceptionOn500 = False
-    Left = 264
-    Top = 264
+    Left = 16
+    Top = 256
   end
   object rRequestCheckWSExists: TRESTRequest
+    Accept = '*/*'
     Client = RESTClient3
-    Params = <
-      item
-        Kind = pkFILE
-        name = 'X-Auth-Token'
-        Options = [poDoNotEncode]
-        Value = 'cd3q6AaCBPGHRaHc8T/A8MkUVdZmZB/GO3JbOBugS0GjXnGMjd2Co+6nBjHvb1pm'
-      end
-      item
-        name = 'custom2'
-        Value = 'G.TES.4-1'
-      end>
+    Params = <>
     Response = rResponseCheckWSExists
     SynchronizedEvents = False
-    Left = 120
-    Top = 448
+    Left = 96
+    Top = 472
   end
   object rResponseCheckWSExists: TRESTResponse
     ContentType = 'text/html'
     RootElement = 'X-Auth-Token'
     Left = 240
-    Top = 464
+    Top = 472
   end
   object qCheckClientID: TUniQuery
     Connection = iManageSQLConn
@@ -377,7 +375,10 @@ object fiManWSProcessor: TfiManWSProcessor
     Top = 184
   end
   object rRequestCreate: TRESTRequest
+    Accept = '*/*'
+    AcceptEncoding = 'gzip, deflate, br'
     Client = RESTClient3
+    Method = rmPOST
     Params = <
       item
         Kind = pkFILE
@@ -389,7 +390,7 @@ object fiManWSProcessor: TfiManWSProcessor
         name = 'custom2'
         Value = 'G.TES.4-1'
       end>
-    Response = rResponseCheckWSExists
+    Response = rResponseCreate
     SynchronizedEvents = False
     Left = 400
     Top = 408
@@ -419,5 +420,127 @@ object fiManWSProcessor: TfiManWSProcessor
         Name = 'UniqueID'
         Value = nil
       end>
+  end
+  object qCreateCUSTOMAlias: TUniQuery
+    Connection = iManageSQLConn
+    SQL.Strings = (
+      
+        'INSERT INTO :CUSTOMTABLE(CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDIT' +
+        'WHEN, IS_HIPAA)'
+      'VALUES (:CUSTOM_ALIAS, :DESCRIPT, '#39'Y'#39', GETDATE(), '#39'N'#39')  ')
+    Left = 600
+    Top = 472
+    ParamData = <
+      item
+        DataType = ftUnknown
+        Name = 'CUSTOMTABLE'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'CUSTOM_ALIAS'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'DESCRIPT'
+        Value = nil
+      end>
+  end
+  object qCreateCustom2Alias: TUniQuery
+    Connection = iManageSQLConn
+    SQL.Strings = (
+      
+        'INSERT INTO :CUSTOMTABLE(CPARENT_ALIAS, CUSTOM_ALIAS, C_DESCRIPT' +
+        ', ENABLED, EDITWHEN, IS_HIPAA)'
+      
+        'VALUES (:CPARENT_ALIAS, :CUSTOM_ALIAS, :DESCRIPT, '#39'Y'#39', GETDATE()' +
+        ', '#39'N'#39')  ')
+    Left = 712
+    Top = 472
+    ParamData = <
+      item
+        DataType = ftUnknown
+        Name = 'CUSTOMTABLE'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'CPARENT_ALIAS'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'CUSTOM_ALIAS'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'DESCRIPT'
+        Value = nil
+      end>
+  end
+  object rRequestUpdate: TRESTRequest
+    Accept = '*/*'
+    AcceptEncoding = 'gzip, deflate, br'
+    Client = RESTClient3
+    Method = rmPATCH
+    Params = <
+      item
+        Kind = pkFILE
+        name = 'X-Auth-Token'
+        Options = [poDoNotEncode]
+        Value = 'cd3q6AaCBPGHRaHc8T/A8MkUVdZmZB/GO3JbOBugS0GjXnGMjd2Co+6nBjHvb1pm'
+      end
+      item
+        name = 'custom2'
+        Value = 'G.TES.4-1'
+      end>
+    Response = rResponseUpdate
+    SynchronizedEvents = False
+    Left = 600
+    Top = 408
+  end
+  object rResponseUpdate: TRESTResponse
+    ContentType = 'text/html'
+    RootElement = 'data'
+    Left = 688
+    Top = 408
+  end
+  object rRequestSetWSPerms: TRESTRequest
+    Accept = '*/*'
+    AcceptEncoding = 'gzip, deflate, br'
+    Client = RESTClient3
+    Method = rmPOST
+    Params = <
+      item
+        Kind = pkFILE
+        name = 'X-Auth-Token'
+        Options = [poDoNotEncode]
+        Value = 'cd3q6AaCBPGHRaHc8T/A8MkUVdZmZB/GO3JbOBugS0GjXnGMjd2Co+6nBjHvb1pm'
+      end
+      item
+        Kind = pkREQUESTBODY
+        name = 'body'
+        Value = '{"end"}'
+      end>
+    Response = rResponseSetWSPerms
+    SynchronizedEvents = False
+    Left = 808
+    Top = 408
+  end
+  object rResponseSetWSPerms: TRESTResponse
+    ContentType = 'text/html'
+    RootElement = 'data'
+    Left = 920
+    Top = 416
+  end
+  object qCheckWSExists: TUniQuery
+    Connection = iManageSQLConn
+    SQL.Strings = (
+      'select top 1 * '
+      'from eu_gdg_open.MHGROUP.PROJECTS where CUSTOM1 = '#39'G.TES.4-1'#39)
+    Left = 392
+    Top = 280
   end
 end

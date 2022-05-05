@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Data.DB, DBAccess, Uni, UniProvider,
-  SQLServerUniProvider, IPPeerClient, Vcl.StdCtrls, REST.Client,
+  SQLServerUniProvider, IPPeerClient, Vcl.StdCtrls, REST.Client, REST.Types,
   REST.Authenticator.OAuth, Data.Bind.Components, Data.Bind.ObjectScope, MemDS,
   System.Rtti, System.Bindings.Outputs, Vcl.Bind.Editors, Data.Bind.EngExt,
   Vcl.Bind.DBEngExt, FireDAC.Stan.Intf, FireDAC.Stan.Option, FireDAC.Stan.Param,
@@ -51,13 +51,24 @@ type
     rRequestCreate: TRESTRequest;
     rResponseCreate: TRESTResponse;
     qUpdateWSID: TUniQuery;
+    qCreateCUSTOMAlias: TUniQuery;
+    qCreateCustom2Alias: TUniQuery;
+    rRequestUpdate: TRESTRequest;
+    rResponseUpdate: TRESTResponse;
+    rRequestSetWSPerms: TRESTRequest;
+    rResponseSetWSPerms: TRESTResponse;
+    qCheckWSExists: TUniQuery;
     procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
+    Function CheckWSExists(fWSID : string; fDB : string):boolean;
     Function CheckClientID(fClientID : string; fDB : string):boolean;
     Function CheckEntity(fEntityID : string; fDB : string):boolean;
+    Function CreateCustomAlias(fCTable : string; fCAlias : string; fDescript : string):boolean;
     Function CreateClientWS():boolean;
     Function UpdateClientWS():boolean;
+    Function SetWSPerms(fDBID : string; fPermGroup : string):boolean;
+    Function CreateWSRootFolders(fDBID : string):boolean;
   public
     { Public declarations }
     AuthToken: string;
@@ -68,7 +79,7 @@ type
 var
   fiManWSProcessor: TfiManWSProcessor;
   CurrentWSID: string;
-  
+
 const
   v2APIBase = 'work/api/v2/customers/100/libraries/';
 
@@ -113,39 +124,72 @@ begin
   RESTrequest1.AddAuthParameter('token_type',AuthTokenType, pkHTTPHEADER);
   RESTrequest1.AddAuthParameter('expires_in',AuthExpireText, pkHTTPHEADER);
 }
-
+//  qNewWSClients.Open;
+  //rRequestLogin.Execute;
   qNewWSClients.Open;
   qNewWSClients.First;
   while not qNewWSClients.Eof do
   begin
-    CurrentWSID.Empty;
-//    DBConn.Name := 'conn_' + qNewWSClients.FieldByName('DBId').AsString;
-    If Not CheckClientID(qNewWSClients.FieldByName('C1Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) Then
+    CurrentWSID := '';
+    If not CheckWSExists(qNewWSClients.FieldByName('C1Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) Then
+    Begin
+      If Not CheckClientID(qNewWSClients.FieldByName('C1Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) Then
+      begin
+        //Create New Custom1
+        CreateCustomAlias(qNewWSClients.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM1', qNewWSClients.FieldByName('C1Alias').AsString,
+                          qNewWSClients.FieldByName('C1Desc').AsString);
+      end;
+
+      If Not CheckEntity(qNewWSClients.FieldByName('C5Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) Then
+      begin
+        //Create New Custom5
+        CreateCustomAlias(qNewWSClients.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM5', qNewWSClients.FieldByName('C5Alias').AsString,
+                          qNewWSClients.FieldByName('C5Desc').AsString);
+      end;
+
+      //Create new client workspace
+      rRequestLogin.Execute;
+      CreateClientWS;
+      UpdateClientWS;
+      SetWSPerms(qNewWSClients.FieldByName('DBId').AsString, qNewWSClients.FieldByName('Default_Security_Group').AsString);
+      CreateWSRootFolders(qNewWSClients.FieldByName('DBId').AsString);
+
+    End
+    else
     begin
-      //Create New Custom1
-    end;
-
-    if Not CheckEntity(qNewWSClients.FieldByName('C5Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) then
-    begin
-      //Create New Custom5
-    end;
-
-    //Create new client workspace
-    CreateClientWS;
-    UpdateClientWS;
-
-    qNewWSClients.Next
+      //Record as already existing
+    end;;
+    qNewWSClients.Next;
   end;
 
-
+  qNewWSClients.Close;
 
   rRequestLogin.Execute;
   rResponseLogin.GetSimpleValue('X-Auth-token', AuthToken);
 
 end;
 
+Function TfiManWSProcessor.CheckWSExists(fWSID : string; fDB : string):boolean;
+Begin
+  Result := False;
+  With qCheckWSExists do
+  begin
+    Close;
+    SQL.Clear;
+    SQL.Text := 'select top 1 * from ' + fDB + '.MHGROUP.PROJECTS ' +
+                'where CUSTOM1 = ' + QuotedStr(fWSID);
+    Open;
+    if IsEmpty then
+      Result := False
+    else
+      Result := True;
+    Close;
+  end;
+End;
+
 Function TfiManWSProcessor.CheckClientID(fClientID : string; fDB : string):boolean;
 Begin
+  Result := False;
   With qCheckClientID Do
   Begin
     Close;
@@ -174,6 +218,7 @@ End;
 
 Function TfiManWSProcessor.CheckEntity(fEntityID : string; fDB : string):boolean;
 Begin
+  Result := False;
   With qCheckEntity Do
   Begin
     Close;
@@ -191,19 +236,42 @@ Begin
 
 End;
 
+Function TfiManWSProcessor.CreateCustomAlias(fCTable : string; fCAlias : string; fDescript : string):boolean;
+Begin
+  try
+    With qCreateCUSTOMAlias do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'INSERT INTO ' + fCTable +'(CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
+                  'VALUES (' + quotedstr(fCAlias) + ', ' + quotedstr(fDescript) + ', ''Y'', GETDATE(), ''N'')';
+      {ParamByName('CUSTOMTABLE').AsString := fCTable;
+      ParamByName('CUSTOM_ALIAS').AsString := fCAlias;
+      ParamByName('DESCRIPT').AsString := fDescript; }
+      Execute;
+    end;
+    Result := True;
+  except on E: Exception do
+    Result := False;
+  end;
+End;
+
 Function TfiManWSProcessor.CreateClientWS():boolean;
 var
   rBody, rFolderID : string;
 Begin
+  Result := False;
+  rResponseCreate.Content.Empty;
   rRequestCreate.Params.Clear;
   rRequestCreate.Resource := v2APIBase + qNewWSClients.FieldByName('DBId').AsString + '/workspaces';
   rBody := '{"author": "epmsdev","class": "WEBDOC","default_security": "' + qNewWSClients.FieldByName('DefaultVisibility').AsString + 
-          '","description": "' + qNewWSClients.FieldByName('Description').AsString + 
+          '","description": "' + qNewWSClients.FieldByName('Description').AsString +
           '","name": "' + qNewWSClients.FieldByName('Name').AsString +
           '","owner": "epmsdev"}';
 
   //{"author": "epmsdev","class": "WEBDOC","default_security": "public","description": "JR Test Workspace",
-  //"name": "001 - JR Test Workspace","owner": "epmsdev"} 
+  //"name": "001 - JR Test Workspace","owner": "epmsdev"}
+  rRequestCreate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
   rRequestCreate.Execute;
   if rResponseCreate.StatusCode = 200 then
   begin
@@ -224,21 +292,38 @@ End;
 
 Function TfiManWSProcessor.UpdateClientWS():boolean;
 var
-  rBody, rWSID, rFolderID : string;
+  rBody, rWSID, rFolderID, rProspective: string;
 Begin
+  Result := False;
+  rResponseUpdate.Content.Empty;
   //update workspace with extra metadata
-  rRequestCreate.Params.Clear;
-  rRequestCreate.Resource := v2APIBase + qNewWSClients.FieldByName('DBId').AsString + '/workspaces' + CurrentWSID;
+  if qNewWSClients.FieldByName('CBool1').AsInteger = 1 then
+    rProspective := 'True'
+  else
+    rProspective := 'False';
+  rRequestUpdate.Params.Clear;
+  rRequestUpdate.Resource := v2APIBase + qNewWSClients.FieldByName('DBId').AsString + '/workspaces/' + CurrentWSID;
   ///work/api/v2/customers/{customerId}/libraries/{libraryId}/workspaces/{workspaceId}
-  rBody := '{"author": "epmsdev","class": "WEBDOC","default_security": "' + qNewWSClients.FieldByName('DefaultVisibility').AsString + 
+  rBody := '{"custom1": "' +  qNewWSClients.FieldByName('C1Alias').AsString +
+            '","custom5": "' + qNewWSClients.FieldByName('C5Alias').AsString +
+            '","custom25": "' + rProspective  +
+            '","sub_class": "CLIENT"' +
+            '","project_custom1": "' + qNewWSClients.FieldByName('C1Alias').AsString +
+            '","project_custom2": "' + qNewWSClients.FieldByName('TemplateId').AsString +
+            '","project_custom3": "Worksite"}';
+
+  {
+  '{"author": "epmsdev","class": "WEBDOC","default_security": "' + qNewWSClients.FieldByName('DefaultVisibility').AsString +
           '","description": "' + qNewWSClients.FieldByName('Description').AsString + 
           '","name": "' + qNewWSClients.FieldByName('Name').AsString +
-          '","owner": "epmsdev"}';
+          '","owner": "epmsdev"}
+          //';  }
 
   //{"author": "epmsdev","class": "WEBDOC","default_security": "public","description": "JR Test Workspace",
-  //"name": "001 - JR Test Workspace","owner": "epmsdev"} 
-  rRequestCreate.Execute;
-  if rResponseCreate.StatusCode = 200 then
+  //"name": "001 - JR Test Workspace","owner": "epmsdev"}
+  rRequestUpdate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
+  rRequestUpdate.Execute;
+  if rResponseUpdate.StatusCode = 200 then
   begin
     //update staging with folder id
  {   rResponseCreate.GetSimpleValue('workspace_id', rWSID);
@@ -253,4 +338,106 @@ Begin
     result := False;
   end;
 End;
+
+Function TfiManWSProcessor.SetWSPerms(fDBID : string; fPermGroup : string):boolean;
+var
+  rBody : string;
+Begin
+  Result := False;
+  rResponseSetWSPerms.Content.Empty;
+  rRequestSetWSPerms.Params.Clear;
+  rRequestSetWSPerms.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/security';
+  rBody := '{"default_security": "private", ' +
+            '"include": [{ "id" : "WSADMIN", "access_level" : "full_access", "type": "user" },' +
+            '{ "id" : "' + fPermGroup + '", "access_level" : "full_access", "type" : "group" }]}';
+  rRequestSetWSPerms.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
+  rRequestSetWSPerms.Execute;
+  if rResponseSetWSPerms.StatusCode = 200 then
+  begin
+    result := True;
+  end
+  else
+  begin
+    //record failure
+    result := False;
+  end;
+End;
+
+Function TfiManWSProcessor.CreateWSRootFolders(fDBID : string):boolean;
+var
+  rBody, rProspective : string;
+  rClientProfile, rMatterProfile : string;
+Begin
+  Result := False;
+
+  rClientProfile :=  '';
+  rMatterProfile := '';
+  if qNewWSClients.FieldByName('Category').AsString = 'MATTER' then
+  begin
+    rMatterProfile := '';
+  end
+  else
+  begin
+    if qNewWSClients.FieldByName('CBool1').AsInteger = 1 then
+      rProspective := 'True'
+    else
+      rProspective := 'False';
+    rClientProfile :=  '"profile": { "custom1": "' + qNewWSClients.FieldByName('C1Alias').AsString +
+                                  '","custom1_description": "' + qNewWSClients.FieldByName('C1Desc').AsString +
+                                  '","custom5": "' + qNewWSClients.FieldByName('C5Alias').AsString +
+                                  '","custom5_description": "' + qNewWSClients.FieldByName('C5Desc').AsString +
+                                  '","custom25": "' + rProspective + '"}';
+  end;
+
+  rResponseCreate.Content.Empty;
+  rRequestCreate.Params.Clear;
+  rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+  rBody := '{"name": "Accounts/Compliance", ' +
+            '"description" : "Accounts/Compliance",' +
+            '"default_security": "inherit",' +
+            '"view_type": "document",' +
+            rClientProfile + rMatterProfile +
+            '}';
+
+  rRequestCreate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
+  rRequestCreate.Execute;
+
+  rResponseCreate.Content.Empty;
+  rRequestCreate.Params.Clear;
+  rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+  rBody := '{"name": "Correspondence", ' +
+            '"description" : "Correspondence",' +
+            '"default_security": "inherit",' +
+            '"view_type": "email",' +
+            rClientProfile + rMatterProfile +
+            '}';
+
+  rRequestCreate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
+  rRequestCreate.Execute;
+
+  rResponseCreate.Content.Empty;
+  rRequestCreate.Params.Clear;
+  rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+  rBody := '{"name": "Documents", ' +
+            '"description" : "Documents",' +
+            '"default_security": "inherit",' +
+            '"view_type": "document",' +
+            rClientProfile + rMatterProfile +
+            '}';
+
+  rRequestCreate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
+  rRequestCreate.Execute;
+
+  if rResponseCreate.StatusCode = 200 then
+  begin
+    result := True;
+  end
+  else
+  begin
+    //record failure
+    result := False;
+  end;
+End;
+
+
 end.
