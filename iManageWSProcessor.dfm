@@ -22,36 +22,14 @@ object fiManWSProcessor: TfiManWSProcessor
     TabOrder = 0
     OnClick = Button1Click
   end
-  object MemoContent: TMemo
-    Left = 528
-    Top = 32
-    Width = 233
-    Height = 137
-    Lines.Strings = (
-      'r67uzN1iTEXBlmcfvbgpe1uWkb9Zbha1Ldxp9is'
-      'p3NJUVuccftiHfqzxE0yyzFgV')
+  object Button2: TButton
+    Left = 640
+    Top = 144
+    Width = 75
+    Height = 25
+    Caption = 'test'
     TabOrder = 1
-  end
-  object Edit1: TEdit
-    Left = 576
-    Top = 240
-    Width = 377
-    Height = 21
-    TabOrder = 2
-  end
-  object Edittoken_type: TEdit
-    Left = 448
-    Top = 336
-    Width = 121
-    Height = 21
-    TabOrder = 3
-  end
-  object MemoContent2: TMemo
-    Left = 728
-    Top = 256
-    Width = 209
-    Height = 113
-    TabOrder = 4
+    OnClick = Button2Click
   end
   object iManageSQLServer: TSQLServerUniProvider
     Left = 248
@@ -114,152 +92,15 @@ object fiManWSProcessor: TfiManWSProcessor
     Left = 416
     Top = 128
   end
-  object RESTClient1: TRESTClient
-    Accept = '*/*'
-    AcceptCharset = 'UTF-8, *;q=0.8'
-    AcceptEncoding = 'gzip, deflate, br'
-    BaseURL = 'https://imancontrol.incegd.com/'
-    ContentType = 'application/x-www-form-urlencoded'
-    Params = <>
-    HandleRedirects = True
-    Left = 24
-    Top = 120
-  end
-  object RESTRQiManWS_Login: TRESTRequest
-    Accept = '*/*'
-    AcceptEncoding = 'gzip, deflate, br'
-    Client = RESTClient1
-    Method = rmPOST
-    Params = <>
-    Resource = 
-      'auth/oauth2/token?username=epmsdev&password=newyork&grant_type=p' +
-      'assword&client_id=RESTAPISCRIPTS&client_secret= &scope=admin'
-    Response = RESTRSWS_Login
-    SynchronizedEvents = False
-    Left = 112
-    Top = 120
-  end
-  object RESTRSWS_Login: TRESTResponse
-    ContentType = 'application/json'
-    Left = 208
-    Top = 120
-  end
-  object OAuth2Auth1: TOAuth2Authenticator
-    AccessToken = 'm5rbc/UfPRDq18fJz/r081TbvkWuo3X/gjYUCqGUFTSKetlKuBTV+O1dvvMYgqXw'
-    AccessTokenEndpoint = 
-      'https://imancontrol.incegd.com/auth/oauth2/token?username=epmsde' +
-      'v&password=newyork&grant_type=password&client_id=RESTAPISCRIPTS&' +
-      'client_secret= &scope=admin'
-    AccessTokenParamName = 'X-Auth-Token'
-    ClientID = 'RESTAPISCRIPTS'
-    ResponseType = rtTOKEN
-    Scope = 'admin'
-    TokenType = ttBEARER
-    Left = 40
-    Top = 200
-  end
   object BindingsList1: TBindingsList
     Methods = <>
     OutputConverters = <>
     Left = 20
-    Top = 21
-    object LinkControlToField2: TLinkControlToField
-      Category = 'Quick Bindings'
-      DataSource = BindSourceDB1
-      FieldName = 'access_token'
-      Control = Edit1
-      Track = True
-    end
-    object LinkControlToFieldtoken_type: TLinkControlToField
-      Category = 'Quick Bindings'
-      DataSource = BindSourceDB1
-      FieldName = 'token_type'
-      Control = Edittoken_type
-      Track = True
-    end
-  end
-  object FDMemTable1: TFDMemTable
-    Active = True
-    FieldDefs = <
-      item
-        Name = 'access_token'
-        DataType = ftWideString
-        Size = 255
-      end
-      item
-        Name = 'expires_in'
-        DataType = ftWideString
-        Size = 255
-      end
-      item
-        Name = 'token_type'
-        DataType = ftWideString
-        Size = 255
-      end
-      item
-        Name = 'scope'
-        DataType = ftWideString
-        Size = 255
-      end
-      item
-        Name = 'refresh_token'
-        DataType = ftWideString
-        Size = 255
-      end>
-    IndexDefs = <>
-    FetchOptions.AssignedValues = [evMode]
-    FetchOptions.Mode = fmAll
-    ResourceOptions.AssignedValues = [rvSilentMode]
-    ResourceOptions.SilentMode = True
-    UpdateOptions.AssignedValues = [uvCheckRequired, uvAutoCommitUpdates]
-    UpdateOptions.CheckRequired = False
-    UpdateOptions.AutoCommitUpdates = True
-    StoreDefs = True
-    Left = 528
-    Top = 184
-  end
-  object BindSourceDB1: TBindSourceDB
-    DataSet = FDMemTable1
-    ScopeMappings = <>
-    Left = 456
-    Top = 200
-  end
-  object RESTResponseDataSetAdapter1: TRESTResponseDataSetAdapter
-    Active = True
-    Dataset = FDMemTable1
-    FieldDefs = <>
-    Response = RESTRSWS_Login
-    Left = 640
-    Top = 192
-  end
-  object RESTRQiManWS_CheckExists: TRESTRequest
-    Accept = '*/*'
-    AcceptEncoding = 'gzip, deflate, br'
-    Client = RESTClient3
-    Params = <
-      item
-        name = 'custom2'
-        Value = 'G.TES.9999'
-        ContentType = ctAPPLICATION_JSON
-      end>
-    Resource = 
-      'work/api/v2/customers/100/libraries/eu_gdg_open/workspaces/searc' +
-      'h'
-    Response = RESTRSWS_CheckExists
-    SynchronizedEvents = False
-    Left = 96
-    Top = 192
-  end
-  object RESTRSWS_CheckExists: TRESTResponse
-    ContentType = 'application/json'
-    ContentEncoding = 'gzip'
-    Left = 120
-    Top = 240
+    Top = 65525
   end
   object RESTClient3: TRESTClient
     Accept = '*/*'
     AcceptCharset = 'UTF-8, *;q=0.8'
-    AcceptEncoding = 'gzip, deflate, br'
     BaseURL = 'https://imancontrol.incegd.com/'
     ContentType = 'application/json'
     Params = <>
@@ -293,19 +134,6 @@ object fiManWSProcessor: TfiManWSProcessor
     RootElement = 'X-Auth-Token'
     Left = 240
     Top = 392
-  end
-  object RESTClient4: TRESTClient
-    Authenticator = OAuth2Auth1
-    Accept = 'application/json, text/plain; q=0.9, text/html;q=0.8,'
-    AcceptCharset = 'UTF-8, *;q=0.8'
-    BaseURL = 
-      'https://euimancontrol.incegd.com/work/api/v2/customers/100/libra' +
-      'ries/eu_gdg_open/workspaces/search'
-    Params = <>
-    HandleRedirects = True
-    RaiseExceptionOn500 = False
-    Left = 16
-    Top = 256
   end
   object rRequestCheckWSExists: TRESTRequest
     Accept = '*/*'
@@ -381,22 +209,24 @@ object fiManWSProcessor: TfiManWSProcessor
     Method = rmPOST
     Params = <
       item
-        Kind = pkFILE
-        name = 'X-Auth-Token'
+        Kind = pkREQUESTBODY
+        name = 'body'
         Options = [poDoNotEncode]
-        Value = 'cd3q6AaCBPGHRaHc8T/A8MkUVdZmZB/GO3JbOBugS0GjXnGMjd2Co+6nBjHvb1pm'
-      end
-      item
-        name = 'custom2'
-        Value = 'G.TES.4-1'
+        Value = 
+          '{"author": "wsadmin","class": "WEBDOC","default_security": "priv' +
+          'ate","description": "001.BOD10 - Alan & Patricia Joan Bodill","n' +
+          'ame": "001.BOD10 - Alan & Patricia Joan Bodill","owner": "wsadmi' +
+          'n"}'
+        ContentType = ctAPPLICATION_JSON
       end>
+    Resource = 'work/api/v2/customers/100/libraries/EU_GDG_OPEN/workspaces'
     Response = rResponseCreate
     SynchronizedEvents = False
     Left = 400
     Top = 408
   end
   object rResponseCreate: TRESTResponse
-    ContentType = 'text/html'
+    ContentType = 'application/json'
     RootElement = 'data'
     Left = 504
     Top = 408
@@ -485,17 +315,7 @@ object fiManWSProcessor: TfiManWSProcessor
     AcceptEncoding = 'gzip, deflate, br'
     Client = RESTClient3
     Method = rmPATCH
-    Params = <
-      item
-        Kind = pkFILE
-        name = 'X-Auth-Token'
-        Options = [poDoNotEncode]
-        Value = 'cd3q6AaCBPGHRaHc8T/A8MkUVdZmZB/GO3JbOBugS0GjXnGMjd2Co+6nBjHvb1pm'
-      end
-      item
-        name = 'custom2'
-        Value = 'G.TES.4-1'
-      end>
+    Params = <>
     Response = rResponseUpdate
     SynchronizedEvents = False
     Left = 600
@@ -512,18 +332,7 @@ object fiManWSProcessor: TfiManWSProcessor
     AcceptEncoding = 'gzip, deflate, br'
     Client = RESTClient3
     Method = rmPOST
-    Params = <
-      item
-        Kind = pkFILE
-        name = 'X-Auth-Token'
-        Options = [poDoNotEncode]
-        Value = 'cd3q6AaCBPGHRaHc8T/A8MkUVdZmZB/GO3JbOBugS0GjXnGMjd2Co+6nBjHvb1pm'
-      end
-      item
-        Kind = pkREQUESTBODY
-        name = 'body'
-        Value = '{"end"}'
-      end>
+    Params = <>
     Response = rResponseSetWSPerms
     SynchronizedEvents = False
     Left = 808
@@ -542,5 +351,49 @@ object fiManWSProcessor: TfiManWSProcessor
       'from eu_gdg_open.MHGROUP.PROJECTS where CUSTOM1 = '#39'G.TES.4-1'#39)
     Left = 392
     Top = 280
+  end
+  object RESTRequest1test: TRESTRequest
+    Accept = '*/*'
+    AcceptEncoding = 'gzip, deflate, br'
+    Client = RESTClient3
+    Method = rmPOST
+    Params = <
+      item
+        Kind = pkREQUESTBODY
+        name = 'body'
+        Options = [poDoNotEncode]
+        Value = 
+          '{"author": "wsadmin","class": "WEBDOC","default_security": "priv' +
+          'ate","description": "001.BOD10 - Alan & Patricia Joan Bodill","n' +
+          'ame": "001.BOD10 - Alan & Patricia Joan Bodill","owner": "wsadmi' +
+          'n"}'
+        ContentType = ctAPPLICATION_JSON
+      end>
+    Resource = 'work/api/v2/customers/100/libraries/EU_GDG_OPEN/workspaces'
+    Response = RESTResponse1test
+    SynchronizedEvents = False
+    Left = 352
+    Top = 544
+  end
+  object RESTResponse1test: TRESTResponse
+    ContentType = 'application/json'
+    RootElement = 'data'
+    Left = 448
+    Top = 552
+  end
+  object qtest: TUniQuery
+    Connection = iManageSQLConn
+    SQL.Strings = (
+      'select * '
+      'from Staging'
+      'where FolderId is null'
+      'and Category = '#39'CLIENT'#39
+      'and Wsid is not null'
+      'and C1Alias is not null'
+      'and C5Alias is not null'
+      'and Default_Security_Group is not null'
+      'and wsid = '#39'001.BOD10'#39)
+    Left = 592
+    Top = 176
   end
 end

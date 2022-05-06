@@ -1,7 +1,4 @@
-﻿[RESTClient1]
-Coordinates=394,10,76,69
-
-[iManageTargetDB]
+﻿[iManageTargetDB]
 Coordinates=288,331,101,33
 
 [qNewWSClients]
@@ -19,47 +16,76 @@ Coordinates=196,364,95,51
 [Button1]
 Coordinates=127,364,53,51
 
-[OAuth2Auth1]
-Coordinates=121,10,108,231
-
 []
-Coordinates=141,508,96,285
-Visible=True
+Coordinates=550,190,88,51
+Visible=False
 
 [BindingsList1]
 Coordinates=130,307,82,33
 
-[MemoContent]
-Coordinates=390,210,82,51
+[qCreateCustom2Alias]
+Coordinates=737,419,121,51
 
-[Edit1]
-Coordinates=450,150,40,51
+[rRequestLogin]
+Coordinates=367,643,87,105
 
-[FDMemTable1]
-Coordinates=267,116,84,33
-Visible=False
+[rResponseLogin]
+Coordinates=137,1,95,285
 
-[BindSourceDB1]
-Coordinates=267,116,92,159
+[rRequestSetWSPerms]
+Coordinates=531,727,123,87
 
-[RESTResponseDataSetAdapter1]
-Coordinates=88,314,174,33
+[rRequestUpdate]
+Coordinates=258,745,93,87
 
-[RESTRQiManWS_Login]
-Coordinates=261,10,131,87
+[qCheckDept]
+Coordinates=443,1127,74,51
 
-[RESTRSWS_Login]
-Coordinates=10,10,106,285
+[rResponseCheckWSExists]
+Coordinates=531,1,145,285
 
-[RESTRQiManWS_CheckExists]
-Coordinates=135,260,164,105
+[qCheckWSExists]
+Coordinates=737,342,98,51
 
-[RESTRSWS_CheckExists]
-Coordinates=329,280,139,285
+[rResponseCreate]
+Coordinates=139,745,99,285
 
-[Edittoken_type]
-Coordinates=550,190,88,51
+[qCheckMatterID]
+Coordinates=531,848,92,51
 
-[MemoContent2]
-Coordinates=181,453,88,51
+[qCheckEntity]
+Coordinates=532,1002,80,51
+
+[qUpdateWSID]
+Coordinates=532,1079,82,51
+
+[rResponseSetWSPerms]
+Coordinates=531,364,131,285
+
+[rRequestCreate]
+Coordinates=870,0,91,105
+
+[qDBList]
+Coordinates=290,643,53,51
+
+[rResponseUpdate]
+Coordinates=0,0,102,285
+
+[RESTResponse1test]
+Coordinates=118,363,115,285
+
+[RESTClient3]
+Coordinates=40,745,76,69
+
+[qCreateCUSTOMAlias]
+Coordinates=737,265,121,51
+
+[rRequestCheckWSExists]
+Coordinates=737,144,136,87
+
+[qCheckClientID]
+Coordinates=532,925,90,51
+
+[RESTRequest1test]
+Coordinates=737,1,106,105
 
