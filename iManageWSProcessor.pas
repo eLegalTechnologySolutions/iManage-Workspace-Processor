@@ -69,7 +69,13 @@ type
     Function test():boolean;
     Procedure InitialiseVars();
     Procedure WriteLog();
-
+    Procedure CreateClient();
+    Procedure CreateMatter();
+    Function CreateMatterWS():boolean;
+    Function CheckMatterID(fMatterID : string; fDB : string):boolean;
+    Function CreateCustom2Alias(fCTable : string):boolean;
+    Function CheckDept(fDept : string; fDB : string):boolean;
+    Function UpdateMatterWS():boolean;
 //    function testfoldercreate():boolean;
   public
     { Public declarations }
@@ -127,6 +133,13 @@ begin
 }
 //  qNewWSClients.Open;
   //rRequestLogin.Execute;
+
+    CreateClient;
+
+End;
+
+Procedure TfiManWSProcessor.CreateClient();
+Begin
   qNewWSClients.Open;
   qNewWSClients.First;
   while not qNewWSClients.Eof do
@@ -178,8 +191,8 @@ begin
 
   qNewWSClients.Close;
 
-  rRequestLogin.Execute;
-  rResponseLogin.GetSimpleValue('X-Auth-token', AuthToken);
+//  rRequestLogin.Execute;
+//  rResponseLogin.GetSimpleValue('X-Auth-token', AuthToken);
 
 end;
 
@@ -228,15 +241,6 @@ Begin
     With qCheckClientID Do
     Begin
       Close;
-  {    if fDB = 'AE_OPEN' then
-        Connection := conn_AE_OPEN
-      else if fDB = 'AP_OPEN' then
-        Connection := conn_AP_OPEN
-      else if fDB = 'EU_OPEN' then
-        Connection := conn_EU_OPEN
-      else if fDB = 'EU_GDG_OPEN' then
-        Connection := conn_EU_GDG_OPEN;
-      ParamByName('C1Alias').AsString := fClientID; }
       SQL.Clear;
       SQL.Text := 'select * from ' + fDB + '.MHGROUP.CUSTOM1 ' +
                   'where CUSTOM_ALIAS = ' + QuotedStr(fClientID);
@@ -320,6 +324,29 @@ Begin
   end;
 End;
 
+Function TfiManWSProcessor.CreateCustom2Alias(fCTable : string):boolean;
+Begin
+
+  try
+    Result := False;
+    With qCreateCUSTOMAlias do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'INSERT INTO ' + fCTable +'(CPARENT_ALIAS, CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
+                  'VALUES (' + quotedstr(qNewWSMatters.FieldByName('C1Alias').AsString) + ', ' +
+                  quotedstr(qNewWSMatters.FieldByName('C2Alias').AsString) + ', ' +
+                  quotedstr(qNewWSMatters.FieldByName('C2Desc').AsString) + ', ''Y'', GETDATE(), ''N'')';
+      Execute;
+    end;
+    Result := True;
+  except on E: Exception do
+    begin
+    Result := False;
+    end;
+  end;
+End;
+
 Function TfiManWSProcessor.CreateClientWS():boolean;
 var
   rBody, rFolderID, rLongDB : string;
@@ -343,7 +370,7 @@ Begin
     rRequestCreate.Execute;
     if rResponseCreate.StatusCode = 201 then
     begin
-      //update staging with folder id
+      //update staging table with folder id
       ClientJSONObject := rResponseCreate.JSONValue as TJSONObject;
       CurrentWSID := ClientJSONObject.GetValue('workspace_id').Value;
 
@@ -391,6 +418,7 @@ Begin
               '","custom5": "' + qNewWSClients.FieldByName('C5Alias').AsString +
               '","custom25": "' + rProspective  +
               '","sub_class": "CLIENT' +
+ //             '","subclass": "CLIENT' +
               '","project_custom1": "' + qNewWSClients.FieldByName('C1Alias').AsString +
               '","project_custom2": "' + qNewWSClients.FieldByName('TemplateId').AsString +
               '","project_custom3": "Worksite"}';
@@ -738,5 +766,254 @@ Begin
   end;
 
 End;
+
+Procedure TfiManWSProcessor.CreateMatter();
+Begin
+  qNewWSMatters.Open;
+  qNewWSMatters.First;
+  while not qNewWSMatters.Eof do
+  begin
+  try
+      InitialiseVars;
+      //CurrentWSID := '';
+      Log_WSID := qNewWSMatters.FieldByName('WSID').AsString;
+      If not CheckWSExists(qNewWSMatters.FieldByName('C1Alias').AsString, qNewWSMatters.FieldByName('DBId').AsString) Then
+      Begin
+        If Not CheckClientID(qNewWSMatters.FieldByName('C1Alias').AsString, qNewWSMatters.FieldByName('DBId').AsString) Then
+        begin
+          //Create New Custom1
+          CreateCustomAlias(qNewWSMatters.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM1', qNewWSMatters.FieldByName('C1Alias').AsString,
+                            qNewWSMatters.FieldByName('C1Desc').AsString);
+        end;
+
+        If Not CheckMatterID(qNewWSMatters.FieldByName('C2Alias').AsString, qNewWSMatters.FieldByName('DBId').AsString) Then
+        begin
+          //Create New Custom2
+          CreateCustom2Alias(qNewWSMatters.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM2');
+        end;
+
+        If Not CheckEntity(qNewWSMatters.FieldByName('C5Alias').AsString, qNewWSMatters.FieldByName('DBId').AsString) Then
+        begin
+          //Create New Custom5
+          CreateCustomAlias(qNewWSMatters.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM5', qNewWSMatters.FieldByName('C5Alias').AsString,
+                            qNewWSMatters.FieldByName('C5Desc').AsString);
+        end;
+
+        If Not CheckDept(qNewWSMatters.FieldByName('C3Alias').AsString, qNewWSMatters.FieldByName('DBId').AsString) Then
+        begin
+          //Create New Custom3
+          CreateCustomAlias(qNewWSMatters.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM3', qNewWSMatters.FieldByName('C3Alias').AsString,
+                            qNewWSMatters.FieldByName('C3Desc').AsString);
+        end;
+
+        //Create new Matter workspace
+        rRequestLogin.Execute;
+        If CreateMatterWS then
+        begin
+          UpdateMatterWS;
+          SetWSPerms(qNewWSMatters.FieldByName('DBId').AsString, qNewWSMatters.FieldByName('Default_Security_Group').AsString);
+          CreateWSRootFolders(qNewWSMatters.FieldByName('DBId').AsString);
+        end
+      End
+      else
+      begin
+        //Matter Workspace already exists
+      end;
+
+  except on E: Exception do
+    Log_Extra_Data := 'Create Workspace failed at top level';
+  end;
+  try
+    WriteLog;
+  except on E: Exception do
+  end;
+
+    qNewWSMatters.Next;
+  end;
+
+  qNewWSMatters.Close;
+
+//  rRequestLogin.Execute;
+//  rResponseLogin.GetSimpleValue('X-Auth-token', AuthToken);
+
+end;
+
+Function TfiManWSProcessor.CheckMatterID(fMatterID : string; fDB : string):boolean;
+Begin
+  try
+
+    Result := False;
+    With qCheckMatterID Do
+    Begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select * from ' + fDB + '.MHGROUP.CUSTOM2 ' +
+                  'where CUSTOM_ALIAS = ' + QuotedStr(fMatterID);
+      Open;
+      if IsEmpty then
+      begin
+        Result := False;
+        Log_Matter_ID := 'N';
+      end
+      else
+      begin
+        Result := True;
+        Log_Matter_ID := 'Exists';
+      end;
+      Close;
+    End;
+
+  except on E: Exception do
+    begin
+      Result := False;
+      Log_Matter_ID := 'Error';
+    end;
+  end;
+End;
+
+Function TfiManWSProcessor.CheckDept(fDept : string; fDB : string):boolean;
+Begin
+  try
+
+    Result := False;
+    With qCheckDept Do
+    Begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select * from ' + fDB + '.MHGROUP.CUSTOM3 ' +
+                  'where CUSTOM_ALIAS = ' + QuotedStr(fDept);
+      Open;
+      if IsEmpty then
+      begin
+        Result := False;
+        Log_Custom3 := 'N';
+      end
+      else
+      begin
+        Result := True;
+        Log_Custom3 := 'Exists';
+      end;
+      Close;
+    End;
+
+  except on E: Exception do
+    begin
+      Result := False;
+      Log_Custom3 := 'Error';
+    end;
+  end;
+End;
+
+
+Function TfiManWSProcessor.CreateMatterWS():boolean;
+var
+  rBody, rFolderID, rLongDB : string;
+  MatterJSONObject : TJsonObject;
+Begin
+  try
+    Result := False;
+    rResponseCreate.Content.Empty;
+
+    rRequestCreate.Params.Clear;
+    rRequestCreate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces';
+    rBody := '{"author": "wsadmin","class": "WEBDOC","default_security": "' +
+            LowerCase(qNewWSMatters.FieldByName('DefaultVisibility').AsString) +
+            '","description": "' + qNewWSMatters.FieldByName('Description').AsString +
+            '","name": "' + qNewWSMatters.FieldByName('Name').AsString +
+            '","owner": "wsadmin"}';
+
+    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
+
+    rRequestCreate.Execute;
+    if rResponseCreate.StatusCode = 201 then
+    begin
+      //update staging table with folder id
+      MatterJSONObject := rResponseCreate.JSONValue as TJSONObject;
+      CurrentWSID := MatterJSONObject.GetValue('workspace_id').Value;
+
+      rLongDB := qNewWSMatters.FieldByName('DBId').AsString + '!';
+      rFolderID := StringReplace(CurrentWSID, rLongDB, '', [rfIgnoreCase]);
+      qUpdateWSID.ParamByName('FolderID').AsString := rFolderID;
+      qUpdateWSID.ParamByName('UniqueID').AsString := qNewWSMatters.FieldByName('C2Alias').AsString;
+      qUpdateWSID.Execute;
+      result := True;
+      Log_Workspace_ID := CurrentWSID;
+//    ClientJSONObject.Free;
+
+    end
+    else
+    begin
+      //record failure
+      result := False;
+      Log_Workspace_ID := 'Response = ' + IntToStr(rResponseCreate.StatusCode);
+    end;
+
+  except on E: Exception do
+    begin
+      result := False;
+      Log_Workspace_ID := 'Response = ' + IntToStr(rResponseCreate.StatusCode);
+    end;
+  end;
+End;
+
+Function TfiManWSProcessor.UpdateMatterWS():boolean;
+var
+  rBody, rWSID, rFolderID, rProspective: string;
+Begin
+  try
+    Result := False;
+    rResponseUpdate.Content.Empty;
+    //update workspace with extra metadata
+    if qNewWSMatters.FieldByName('CBool1').AsBoolean = True then
+    rProspective := 'true'
+    else
+      rProspective := 'false';
+    rRequestUpdate.Params.Clear;
+    rRequestUpdate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces/' + CurrentWSID;
+    ///work/api/v2/customers/{customerId}/libraries/{libraryId}/workspaces/{workspaceId}
+    rBody := '{"custom1": "' +  qNewWSMatters.FieldByName('C1Alias').AsString +
+              '","custom2": "' + qNewWSMatters.FieldByName('C2Alias').AsString +
+              '","custom3": "' + qNewWSMatters.FieldByName('C3Alias').AsString +
+              '","custom5": "' + qNewWSMatters.FieldByName('C5Alias').AsString +
+              '","custom6": "' + qNewWSMatters.FieldByName('C6Alias').AsString +
+              '","custom8": "' + qNewWSMatters.FieldByName('C8Alias').AsString +
+              '","custom23": "' + qNewWSMatters.FieldByName('CDate3').AsString +
+              '","custom25": "' + rProspective  +
+              '","sub_class": "MATTER' +
+//              '","subclass": "MATTER' +
+              '","project_custom1": "' + qNewWSMatters.FieldByName('C2Alias').AsString +
+              '","project_custom2": "' + qNewWSMatters.FieldByName('TemplateId').AsString +
+              '","project_custom3": "Worksite"}';
+
+
+    rRequestUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
+    rRequestUpdate.Execute;
+    if rResponseUpdate.StatusCode = 200 then
+    begin
+      //update staging with folder id
+   {   rResponseCreate.GetSimpleValue('workspace_id', rWSID);
+      rFolderID := rWSID.Substring(pos(rWSID,'!')+1);
+      qUpdateWSID.ParamByName('UniqueID').AsString := rFolderID;
+      qUpdateWSID.Execute;    }
+      result := True;
+      Log_WS_MetaData := 'Y';
+    end
+    else
+    begin
+      //record failure
+      result := False;
+      Log_WS_MetaData := 'Status = ' + IntToStr(rResponseUpdate.StatusCode);
+    end;
+
+  except on E: Exception do
+    begin
+      result := False;
+      Log_WS_MetaData := 'Status = ' + IntToStr(rResponseUpdate.StatusCode);
+    end;
+  end;
+End;
+
 
 end.

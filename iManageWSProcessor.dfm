@@ -14,8 +14,8 @@ object fiManWSProcessor: TfiManWSProcessor
   PixelsPerInch = 96
   TextHeight = 13
   object Button1: TButton
-    Left = 592
-    Top = 288
+    Left = 752
+    Top = 80
     Width = 75
     Height = 25
     Caption = 'Run Client'
@@ -23,8 +23,8 @@ object fiManWSProcessor: TfiManWSProcessor
     OnClick = Button1Click
   end
   object Button2: TButton
-    Left = 640
-    Top = 144
+    Left = 752
+    Top = 352
     Width = 75
     Height = 25
     Caption = 'test'
@@ -32,8 +32,8 @@ object fiManWSProcessor: TfiManWSProcessor
     OnClick = Button2Click
   end
   object iManageSQLServer: TSQLServerUniProvider
-    Left = 248
-    Top = 72
+    Left = 256
+    Top = 8
   end
   object iManageSQLConn: TUniConnection
     ProviderName = 'SQL Server'
@@ -43,8 +43,8 @@ object fiManWSProcessor: TfiManWSProcessor
     Server = 'EUIMANSQL01.INCEGD.COM'
     Connected = True
     LoginPrompt = False
-    Left = 256
-    Top = 24
+    Left = 144
+    Top = 8
     EncryptedPassword = 
       '8CFF8BFF90FF8FFF83FFB2FFBEFFA6FFB0FFADFF83FF96FF91FF9BFF96FF9EFF' +
       '83FFBBFFB6FFADFFBAFFBCFFABFF'
@@ -57,8 +57,8 @@ object fiManWSProcessor: TfiManWSProcessor
     Server = 'EUIMANSQL01.INCEGD.COM'
     Connected = True
     LoginPrompt = False
-    Left = 376
-    Top = 72
+    Left = 384
+    Top = 8
     EncryptedPassword = 
       '8CFF8BFF90FF8FFF83FFB2FFBEFFA6FFB0FFADFF83FF96FF91FF9BFF96FF9EFF' +
       '83FFBBFFB6FFADFFBAFFBCFFABFF'
@@ -74,8 +74,8 @@ object fiManWSProcessor: TfiManWSProcessor
       'and C1Alias is not null'
       'and C5Alias is not null'
       'and Default_Security_Group is not null')
-    Left = 312
-    Top = 128
+    Left = 64
+    Top = 96
   end
   object qNewWSMatters: TUniQuery
     Connection = iManageSQLConn
@@ -87,10 +87,11 @@ object fiManWSProcessor: TfiManWSProcessor
       'and Wsid is not null'
       'and C1Alias is not null'
       'and C2Alias is not null'
+      'and C3Alias is not null'
       'and C5Alias is not null'
       'and Default_Security_Group is not null')
-    Left = 416
-    Top = 128
+    Left = 368
+    Top = 96
   end
   object BindingsList1: TBindingsList
     Methods = <>
@@ -133,7 +134,7 @@ object fiManWSProcessor: TfiManWSProcessor
     ContentType = 'application/json'
     RootElement = 'X-Auth-Token'
     Left = 240
-    Top = 392
+    Top = 400
   end
   object rRequestCheckWSExists: TRESTRequest
     Accept = '*/*'
@@ -160,8 +161,8 @@ object fiManWSProcessor: TfiManWSProcessor
       '*/'
       'select * from eu_gdg_open.MHGROUP.CUSTOM1'
       'where CUSTOM_ALIAS = '#39'G.TES.4'#39)
-    Left = 312
-    Top = 184
+    Left = 64
+    Top = 152
   end
   object qCheckMatterID: TUniQuery
     Connection = iManageSQLConn
@@ -170,8 +171,8 @@ object fiManWSProcessor: TfiManWSProcessor
       'from Staging'
       'where FolderId is null'
       'and Category = '#39'CLIENT'#39)
-    Left = 312
-    Top = 240
+    Left = 64
+    Top = 208
   end
   object qCheckEntity: TUniQuery
     Connection = iManageSQLConn
@@ -180,8 +181,8 @@ object fiManWSProcessor: TfiManWSProcessor
       'from Staging'
       'where FolderId is null'
       'and Category = '#39'CLIENT'#39)
-    Left = 320
-    Top = 296
+    Left = 72
+    Top = 264
   end
   object qCheckDept: TUniQuery
     Connection = iManageSQLConn
@@ -190,8 +191,8 @@ object fiManWSProcessor: TfiManWSProcessor
       'from Staging'
       'where FolderId is null'
       'and Category = '#39'CLIENT'#39)
-    Left = 312
-    Top = 360
+    Left = 64
+    Top = 328
   end
   object qDBList: TUniQuery
     Connection = iManageSQLConn
@@ -199,8 +200,8 @@ object fiManWSProcessor: TfiManWSProcessor
       'select Distinct DBID '
       'from Staging'
       'where FolderId is null')
-    Left = 400
-    Top = 184
+    Left = 152
+    Top = 152
   end
   object rRequestCreate: TRESTRequest
     Accept = '*/*'
@@ -337,8 +338,8 @@ object fiManWSProcessor: TfiManWSProcessor
     SQL.Strings = (
       'select top 1 * '
       'from eu_gdg_open.MHGROUP.PROJECTS where CUSTOM1 = '#39'G.TES.4-1'#39)
-    Left = 392
-    Top = 280
+    Left = 144
+    Top = 248
   end
   object RESTRequest1test: TRESTRequest
     Accept = '*/*'
@@ -383,8 +384,8 @@ object fiManWSProcessor: TfiManWSProcessor
       'and C5Alias is not null'
       'and Default_Security_Group is not null'
       'and wsid = '#39'007.AMB1'#39)
-    Left = 592
-    Top = 176
+    Left = 672
+    Top = 344
   end
   object qWriteLog: TUniQuery
     Connection = iManageSQLConn
@@ -415,8 +416,8 @@ object fiManWSProcessor: TfiManWSProcessor
       '      :Log_Date'
       '      )'
       '')
-    Left = 744
-    Top = 216
+    Left = 152
+    Top = 312
     ParamData = <
       item
         DataType = ftUnknown
