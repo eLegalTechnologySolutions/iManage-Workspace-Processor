@@ -207,19 +207,7 @@ object fiManWSProcessor: TfiManWSProcessor
     AcceptEncoding = 'gzip, deflate, br'
     Client = RESTClient3
     Method = rmPOST
-    Params = <
-      item
-        Kind = pkREQUESTBODY
-        name = 'body'
-        Options = [poDoNotEncode]
-        Value = 
-          '{"author": "wsadmin","class": "WEBDOC","default_security": "priv' +
-          'ate","description": "001.BOD10 - Alan & Patricia Joan Bodill","n' +
-          'ame": "001.BOD10 - Alan & Patricia Joan Bodill","owner": "wsadmi' +
-          'n"}'
-        ContentType = ctAPPLICATION_JSON
-      end>
-    Resource = 'work/api/v2/customers/100/libraries/EU_GDG_OPEN/workspaces'
+    Params = <>
     Response = rResponseCreate
     SynchronizedEvents = False
     Left = 400
@@ -386,14 +374,23 @@ object fiManWSProcessor: TfiManWSProcessor
     SQL.Strings = (
       'select * '
       'from Staging'
-      'where FolderId is null'
-      'and Category = '#39'CLIENT'#39
+      'where '
+      '--FolderId is null'
+      '--and '
+      'Category = '#39'CLIENT'#39
       'and Wsid is not null'
       'and C1Alias is not null'
       'and C5Alias is not null'
       'and Default_Security_Group is not null'
-      'and wsid = '#39'001.BOD10'#39)
+      'and wsid = '#39'001.BIA2'#39)
     Left = 592
     Top = 176
+  end
+  object qWriteLog: TUniQuery
+    Connection = iManageSQLConn
+    SQL.Strings = (
+      'Insert Into EL_WS_Create_Log')
+    Left = 744
+    Top = 216
   end
 end

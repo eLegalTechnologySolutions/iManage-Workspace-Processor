@@ -1,91 +1,97 @@
 ﻿[iManageTargetDB]
-Coordinates=288,331,101,33
+Coordinates=288,331,119,36
 
 [qNewWSClients]
-Coordinates=10,364,92,51
+Coordinates=10,364,107,58
 
 [iManageSQLServer]
-Coordinates=269,437,108,33
+Coordinates=269,437,127,36
 
 [iManageSQLConn]
-Coordinates=140,437,103,33
+Coordinates=140,437,120,36
 
 [qNewWSMatters]
-Coordinates=196,364,95,51
+Coordinates=196,364,110,58
 
 [Button1]
-Coordinates=127,364,53,51
+Coordinates=127,364,59,58
 
 []
 Coordinates=550,190,88,51
 Visible=False
 
 [BindingsList1]
-Coordinates=130,307,82,33
+Coordinates=130,307,91,36
 
 [qCreateCustom2Alias]
-Coordinates=737,419,121,51
+Coordinates=737,419,140,58
 
 [rRequestLogin]
-Coordinates=367,643,87,105
+Coordinates=367,643,98,124
 
 [rResponseLogin]
-Coordinates=137,1,95,285
+Coordinates=137,1,108,344
 
 [rRequestSetWSPerms]
-Coordinates=531,727,123,87
+Coordinates=531,727,143,102
 
 [rRequestUpdate]
-Coordinates=258,745,93,87
+Coordinates=258,745,108,102
 
 [qCheckDept]
-Coordinates=443,1127,74,51
+Coordinates=443,1127,85,58
 
 [rResponseCheckWSExists]
-Coordinates=531,1,145,285
+Coordinates=531,1,168,344
 
 [qCheckWSExists]
-Coordinates=737,342,98,51
+Coordinates=737,342,113,58
 
 [rResponseCreate]
-Coordinates=139,745,99,285
+Coordinates=139,745,115,344
 
 [qCheckMatterID]
-Coordinates=531,848,92,51
+Coordinates=531,848,107,58
 
 [qCheckEntity]
-Coordinates=532,1002,80,51
+Coordinates=532,1002,90,58
 
 [qUpdateWSID]
-Coordinates=532,1079,82,51
+Coordinates=532,1079,96,58
 
 [rResponseSetWSPerms]
-Coordinates=531,364,131,285
+Coordinates=531,364,153,344
 
 [rRequestCreate]
-Coordinates=870,0,91,105
+Coordinates=870,0,105,124
 
 [qDBList]
-Coordinates=290,643,53,51
+Coordinates=290,643,60,58
 
 [rResponseUpdate]
-Coordinates=0,0,102,285
+Coordinates=0,0,118,344
 
 [RESTResponse1test]
-Coordinates=118,363,115,285
+Coordinates=118,363,134,344
 
 [RESTClient3]
-Coordinates=40,745,76,69
+Coordinates=40,745,89,80
 
 [qCreateCUSTOMAlias]
-Coordinates=737,265,121,51
+Coordinates=737,265,143,58
 
 [rRequestCheckWSExists]
-Coordinates=737,144,136,87
+Coordinates=737,144,158,102
 
 [qCheckClientID]
-Coordinates=532,925,90,51
+Coordinates=532,925,104,58
 
 [RESTRequest1test]
-Coordinates=737,1,106,105
+Coordinates=737,1,124,124
+
+[Button2]
+Coordinates=290,1,59,58
+
+[qtest]
+Coordinates=290,78,43,58
 
