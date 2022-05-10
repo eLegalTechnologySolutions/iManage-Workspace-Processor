@@ -18,7 +18,7 @@ object fiManWSProcessor: TfiManWSProcessor
     Top = 288
     Width = 75
     Height = 25
-    Caption = 'Button1'
+    Caption = 'Run Client'
     TabOrder = 0
     OnClick = Button1Click
   end
@@ -382,15 +382,121 @@ object fiManWSProcessor: TfiManWSProcessor
       'and C1Alias is not null'
       'and C5Alias is not null'
       'and Default_Security_Group is not null'
-      'and wsid = '#39'001.BIA2'#39)
+      'and wsid = '#39'007.AMB1'#39)
     Left = 592
     Top = 176
   end
   object qWriteLog: TUniQuery
     Connection = iManageSQLConn
     SQL.Strings = (
-      'Insert Into EL_WS_Create_Log')
+      'Insert Into EL_WS_Create_Log'
+      
+        '(WSID, WS_Exist, Client_ID, Matter_ID, CUSTOM1, CUSTOM2, CUSTOM3' +
+        ', CUSTOM5, CUSTOM6,'
+      
+        'CUSTOM8, Workspace_ID, WS_MetaData, WS_Permissions, WS_RootFolde' +
+        'rs, Extra_Data, CreateDate)'
+      'Values ('
+      '      :Log_WSID,'
+      '      :Log_WSID_Exist,'
+      '      :Log_Client_ID,'
+      '      :Log_Matter_ID,'
+      '      :Log_Custom1,'
+      '      :Log_Custom2,'
+      '      :Log_Custom3,'
+      '      :Log_Custom5,'
+      '      :Log_Custom6,'
+      '      :Log_Custom8,'
+      '      :Log_Workspace_ID,'
+      '      :Log_WS_MetaData,'
+      '      :Log_Permissions,'
+      '      :Log_WSRootFolders,'
+      '      :Log_Extra_Data,'
+      '      :Log_Date'
+      '      )'
+      '')
     Left = 744
     Top = 216
+    ParamData = <
+      item
+        DataType = ftUnknown
+        Name = 'Log_WSID'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_WSID_Exist'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Client_ID'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Matter_ID'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Custom1'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Custom2'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Custom3'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Custom5'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Custom6'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Custom8'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Workspace_ID'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_WS_MetaData'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Permissions'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_WSRootFolders'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Extra_Data'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'Log_Date'
+        Value = nil
+      end>
   end
 end

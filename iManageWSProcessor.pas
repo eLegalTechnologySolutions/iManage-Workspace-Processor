@@ -52,7 +52,7 @@ type
   private
     { Private declarations }
     CurrentWSID: string;
-    Log_WSID : string;
+    Log_WSID, Log_WSID_Exist : string;
     Log_Client_ID, Log_Matter_ID : string;
     Log_Custom1, Log_Custom2, Log_Custom3, Log_Custom5, Log_Custom6, Log_Custom8 : string;
     Log_Workspace_ID, Log_WS_MetaData, Log_Permissions : string;
@@ -67,6 +67,7 @@ type
     Function SetWSPerms(fDBID : string; fPermGroup : string):boolean;
     Function CreateWSRootFolders(fDBID : string):boolean;
     Function test():boolean;
+    Procedure InitialiseVars();
     Procedure WriteLog();
 
 //    function testfoldercreate():boolean;
@@ -130,36 +131,48 @@ begin
   qNewWSClients.First;
   while not qNewWSClients.Eof do
   begin
-    CurrentWSID := '';
-    If not CheckWSExists(qNewWSClients.FieldByName('C1Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) Then
-    Begin
-      If Not CheckClientID(qNewWSClients.FieldByName('C1Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) Then
+  try
+      InitialiseVars;
+      //CurrentWSID := '';
+      Log_WSID := qNewWSClients.FieldByName('WSID').AsString;
+      If not CheckWSExists(qNewWSClients.FieldByName('C1Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) Then
+      Begin
+        If Not CheckClientID(qNewWSClients.FieldByName('C1Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) Then
+        begin
+          //Create New Custom1
+          CreateCustomAlias(qNewWSClients.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM1', qNewWSClients.FieldByName('C1Alias').AsString,
+                            qNewWSClients.FieldByName('C1Desc').AsString);
+        end;
+
+        If Not CheckEntity(qNewWSClients.FieldByName('C5Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) Then
+        begin
+          //Create New Custom5
+          CreateCustomAlias(qNewWSClients.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM5', qNewWSClients.FieldByName('C5Alias').AsString,
+                            qNewWSClients.FieldByName('C5Desc').AsString);
+        end;
+
+        //Create new client workspace
+        rRequestLogin.Execute;
+        If CreateClientWS then
+        begin
+          UpdateClientWS;
+          SetWSPerms(qNewWSClients.FieldByName('DBId').AsString, qNewWSClients.FieldByName('Default_Security_Group').AsString);
+          CreateWSRootFolders(qNewWSClients.FieldByName('DBId').AsString);
+        end
+      End
+      else
       begin
-        //Create New Custom1
-        CreateCustomAlias(qNewWSClients.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM1', qNewWSClients.FieldByName('C1Alias').AsString,
-                          qNewWSClients.FieldByName('C1Desc').AsString);
+        //Client Workspace already exists
       end;
 
-      If Not CheckEntity(qNewWSClients.FieldByName('C5Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) Then
-      begin
-        //Create New Custom5
-        CreateCustomAlias(qNewWSClients.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM5', qNewWSClients.FieldByName('C5Alias').AsString,
-                          qNewWSClients.FieldByName('C5Desc').AsString);
-      end;
+  except on E: Exception do
+    Log_Extra_Data := 'Create Workspace failed at top level';
+  end;
+  try
+    WriteLog;
+  except on E: Exception do
+  end;
 
-      //Create new client workspace
-      rRequestLogin.Execute;
-      If CreateClientWS then
-      begin
-        UpdateClientWS;
-        SetWSPerms(qNewWSClients.FieldByName('DBId').AsString, qNewWSClients.FieldByName('Default_Security_Group').AsString);
-        CreateWSRootFolders(qNewWSClients.FieldByName('DBId').AsString);
-      end
-    End
-    else
-    begin
-      //Record as already existing
-    end;;
     qNewWSClients.Next;
   end;
 
@@ -185,19 +198,19 @@ Begin
       if IsEmpty then
       begin
         Result := False;
-        Log_WSID := 'N';
+        Log_WSID_Exist := 'N';
       end
       else
       begin
         Result := True;
-        Log_WSID := 'Y';
+        Log_WSID_Exist := 'Y';
       end;
       Close;
     end;
   except on E: Exception do
     begin
       Result := False;
-      Log_WSID := 'Error';
+      Log_WSID_Exist := 'Error';
     end;
   end
 End;
@@ -538,7 +551,7 @@ Begin
     if rResponseCreate.StatusCode = 201 then
       begin
         result := True;
-        Log_WSRootFolders := ' [Correspondence = Y]';
+        Log_WSRootFolders := Log_WSRootFolders + ' [Correspondence = Y]';
       end
       else
       begin
@@ -572,7 +585,7 @@ Begin
     if rResponseCreate.StatusCode = 201 then
     begin
       result := True;
-      Log_WSRootFolders := ' [Documents = Y]';
+      Log_WSRootFolders := Log_WSRootFolders + ' [Documents = Y]';
     end
     else
     begin
@@ -597,7 +610,7 @@ Begin
   qtest.open;
   rRequestLogin.Execute;
   //Remember to update this and the test query
-  CurrentWSID := 'EU_GDG_OPEN!966334';
+  CurrentWSID := 'EU_GDG_OPEN!967529';
   fDBID := 'EU_GDG_OPEN';
   rClientProfile :=  '';
   rMatterProfile := '';
@@ -627,78 +640,103 @@ function TfiManWSProcessor.testfoldercreate():boolean;                  }
       rProspective := 'true'
     else
       rProspective := 'false';
-//    rClientProfile :=  '"profile": { "custom1": "' + qtest.FieldByName('C1Alias').AsString +
-//                                  '","custom1_description": "' + qtest.FieldByName('C1Desc').AsString +
-//                                  '","custom5": "' + qtest.FieldByName('C5Alias').AsString +
-//                                  '","custom5_description": "' + qtest.FieldByName('C5Desc').AsString +
-//                                  '","custom25": "' + rProspective + '"}';
-    rClientProfile :=  '"profile": { "custom1": "' + qtest.FieldByName('C1Alias').AsString +
-                                  //'","custom1_description": "' + qNewWSClients.FieldByName('C1Desc').AsString +
-                                  '","custom5": "' + qtest.FieldByName('C5Alias').AsString +
-                                  //'","custom5_description": "' + qNewWSClients.FieldByName('C5Desc').AsString +
-                                  '","custom25": "' + rProspective + '"}';
-  end;
 
-    rResponseCreate.Content.Empty;
-    rRequestCreate.Params.Clear;
-    rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
-    rBody := '{"name": "Accounts/Compliance", ' +
-              '"description" : "Accounts/Compliance",' +
-              '"default_security": "inherit",' +
-              '"view_type": "document",' +
-              rClientProfile + rMatterProfile +
-              '}';
+    rRequestUpdate.Params.Clear;
+    rRequestUpdate.Resource := v2APIBase + qtest.FieldByName('DBId').AsString + '/workspaces/' + CurrentWSID;
+    ///work/api/v2/customers/{customerId}/libraries/{libraryId}/workspaces/{workspaceId}
+    rBody := '{"custom1": "' +  qtest.FieldByName('C1Alias').AsString +
+              '","custom5": "' + qtest.FieldByName('C5Alias').AsString +
+              '","custom25": "' + rProspective  +
+              '","sub_class": "CLIENT' +
+              '","project_custom1": "' + qtest.FieldByName('C1Alias').AsString +
+              '","project_custom2": "' + qtest.FieldByName('TemplateId').AsString +
+              '","project_custom3": "Worksite"}';
 
-  //  rRequestCreate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
-    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
-    rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
-    rRequestCreate.Execute;
+    {
+    '{"author": "epmsdev","class": "WEBDOC","default_security": "' + qNewWSClients.FieldByName('DefaultVisibility').AsString +
+            '","description": "' + qNewWSClients.FieldByName('Description').AsString +
+            '","name": "' + qNewWSClients.FieldByName('Name').AsString +
+            '","owner": "epmsdev"}
+            //';  }
 
-  rResponseCreate.Content.Empty;
-  rRequestCreate.Params.Clear;
-  rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
-  rBody := '{"name": "Correspondence", ' +
-            '"description" : "Correspondence",' +
-            '"default_security": "inherit",' +
-            '"view_type": "email",' +
-            '"email": "' + qtest.FieldByName('WSID').AsString + '",' +
-            rClientProfile + rMatterProfile +
-            '}';
+    //{"author": "epmsdev","class": "WEBDOC","default_security": "public","description": "JR Test Workspace",
+    //"name": "001 - JR Test Workspace","owner": "epmsdev"}
+  //  rRequestUpdate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
+    rRequestUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
+    rRequestUpdate.Execute;
+    if rResponseUpdate.StatusCode = 200 then
+    begin
+      //update staging with folder id
+   {   rResponseCreate.GetSimpleValue('workspace_id', rWSID);
+      rFolderID := rWSID.Substring(pos(rWSID,'!')+1);
+      qUpdateWSID.ParamByName('UniqueID').AsString := rFolderID;
+      qUpdateWSID.Execute;    }
+      result := True;
+      Log_WS_MetaData := 'Y';
+    end
+    else
+    begin
+      //record failure
+      result := False;
+      Log_WS_MetaData := 'Status = ' + IntToStr(rResponseUpdate.StatusCode);
+    end;
 
-//  rRequestCreate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
-  rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
-  rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
-  rRequestCreate.Execute;
+{  except on E: Exception do
+    begin
+      result := False;
+      Log_WS_MetaData := 'Status = ' + IntToStr(rResponseUpdate.StatusCode);
+    end;
+}  end;
 
-  rResponseCreate.Content.Empty;
-  rRequestCreate.Params.Clear;
-  rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
-  rBody := '{"name": "Documents", ' +
-            '"description" : "Documents",' +
-            '"default_security": "inherit",' +
-            '"view_type": "document",' +
-            rClientProfile + rMatterProfile +
-            '}';
+End;
 
-//  rRequestCreate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
-  rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
-  rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
-  rRequestCreate.Execute;
-
-  if rResponseCreate.StatusCode = 201 then
-  begin
-    result := True;
-  end
-  else
-  begin
-    //record failure
-    result := False;
-  end;
+Procedure TfiManWSProcessor.InitialiseVars();
+Begin
+  CurrentWSID := '';
+  Log_WSID := '';
+  Log_WSID_Exist := '';
+  Log_Client_ID := '';
+  Log_Matter_ID := '';
+  Log_Custom1 := '';
+  Log_Custom2 := '';
+  Log_Custom3 := '';
+  Log_Custom5 := '';
+  Log_Custom6 := '';
+  Log_Custom8 := '';
+  Log_Workspace_ID := '';
+  Log_WS_MetaData := '';
+  Log_Permissions := '';
+  Log_WSRootFolders := '';
+  Log_Extra_Data := '';
 End;
 
 Procedure TfiManWSProcessor.WriteLog();
 Begin
-  ///
+  With qWriteLog do
+  begin
+    Close;
+    ParamByName('Log_WSID').AsString := Log_WSID;
+    ParamByName('Log_WSID_Exist').AsString := Log_WSID_Exist;
+    ParamByName('Log_Client_ID').AsString := Log_Client_ID;
+    ParamByName('Log_Matter_ID').AsString := Log_Matter_ID;
+    ParamByName('Log_Custom1').AsString := Log_Custom1;
+    ParamByName('Log_Custom2').AsString := Log_Custom2;
+    ParamByName('Log_Custom3').AsString := Log_Custom3;
+    ParamByName('Log_Custom5').AsString := Log_Custom5;
+    ParamByName('Log_Custom6').AsString := Log_Custom6;
+    ParamByName('Log_Custom8').AsString := Log_Custom8;
+    ParamByName('Log_Workspace_ID').AsString := Log_Workspace_ID;
+    ParamByName('Log_WS_MetaData').AsString := Log_WS_MetaData;
+    ParamByName('Log_Permissions').AsString := Log_Permissions;
+    ParamByName('Log_WSRootFolders').AsString := Log_WSRootFolders;
+    ParamByName('Log_Extra_Data').AsString := Log_Extra_Data;
+    ParamByName('Log_Date').AsDateTime := Now;
+
+    Execute;
+    Close;
+  end;
+
 End;
 
 end.
