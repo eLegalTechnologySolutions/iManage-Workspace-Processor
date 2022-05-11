@@ -80,6 +80,7 @@ type
     Function CheckDept(fDept : string; fDB : string):boolean;
     Function UpdateMatterWS():boolean;
     Function CheckPrevRef(fPrevRef : string; fDB : string):boolean;
+    Procedure UpdateStagingWithFolderID(Sender: TObject);
 //    function testfoldercreate():boolean;
   public
     { Public declarations }
@@ -221,8 +222,8 @@ Begin
       begin
         Result := True;
         Log_WSID_Exist := 'Y';
-      end;
       Close;
+      end;
     end;
   except on E: Exception do
     begin
@@ -869,7 +870,7 @@ Begin
       InitialiseVars;
       //CurrentWSID := '';
       Log_WSID := qNewWSMatters.FieldByName('WSID').AsString;
-      If not CheckWSExists(qNewWSMatters.FieldByName('C1Alias').AsString, qNewWSMatters.FieldByName('DBId').AsString) Then
+      If not CheckWSExists(qNewWSMatters.FieldByName('C2Alias').AsString, qNewWSMatters.FieldByName('DBId').AsString) Then
       Begin
         If Not CheckClientID(qNewWSMatters.FieldByName('C1Alias').AsString, qNewWSMatters.FieldByName('DBId').AsString) Then
         begin
@@ -915,7 +916,7 @@ Begin
       End
       else
       begin
-        //Matter Workspace already exists
+        //Matter Workspace already exists - update folderid in staging table
       end;
 
   except on E: Exception do
@@ -1145,5 +1146,9 @@ Begin
   end;
 End;
 
+Procedure TfiManWSProcessor.UpdateStagingWithFolderID(Sender: TObject);
+Begin
+    //
+End;
 
 end.
