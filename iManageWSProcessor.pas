@@ -20,7 +20,7 @@ type
     iManageTargetDB: TUniConnection;
     qNewWSClients: TUniQuery;
     qNewWSMatters: TUniQuery;
-    Button1: TButton;
+    bCreateClientWS: TButton;
     BindingsList1: TBindingsList;
     RESTClient3: TRESTClient;
     rRequestLogin: TRESTRequest;
@@ -47,8 +47,11 @@ type
     Button2: TButton;
     qtest: TUniQuery;
     qWriteLog: TUniQuery;
-    procedure Button1Click(Sender: TObject);
+    bCreateMatterWS: TButton;
+    qCheckPrevRef: TUniQuery;
+    procedure bCreateClientWSClick(Sender: TObject);
     procedure Button2Click(Sender: TObject);
+    procedure bCreateMatterWSClick(Sender: TObject);
   private
     { Private declarations }
     CurrentWSID: string;
@@ -65,7 +68,7 @@ type
     Function CreateClientWS():boolean;
     Function UpdateClientWS():boolean;
     Function SetWSPerms(fDBID : string; fPermGroup : string):boolean;
-    Function CreateWSRootFolders(fDBID : string):boolean;
+    Function CreateWSRootFolders(fDBID : string; fWSType : string):boolean;
     Function test():boolean;
     Procedure InitialiseVars();
     Procedure WriteLog();
@@ -76,6 +79,7 @@ type
     Function CreateCustom2Alias(fCTable : string):boolean;
     Function CheckDept(fDept : string; fDB : string):boolean;
     Function UpdateMatterWS():boolean;
+    Function CheckPrevRef(fPrevRef : string; fDB : string):boolean;
 //    function testfoldercreate():boolean;
   public
     { Public declarations }
@@ -97,7 +101,7 @@ uses
 //  REST.Utils;
 {$R *.dfm}
 
-procedure TfiManWSProcessor.Button1Click(Sender: TObject);
+procedure TfiManWSProcessor.bCreateClientWSClick(Sender: TObject);
 //var
 //  DBConn : TUniConnection;
 //  AuthExpireText : string;
@@ -170,7 +174,7 @@ Begin
         begin
           UpdateClientWS;
           SetWSPerms(qNewWSClients.FieldByName('DBId').AsString, qNewWSClients.FieldByName('Default_Security_Group').AsString);
-          CreateWSRootFolders(qNewWSClients.FieldByName('DBId').AsString);
+          CreateWSRootFolders(qNewWSClients.FieldByName('DBId').AsString, 'CLIENT');
         end
       End
       else
@@ -227,6 +231,11 @@ Begin
     end;
   end
 End;
+
+procedure TfiManWSProcessor.bCreateMatterWSClick(Sender: TObject);
+begin
+  CreateMatter;
+end;
 
 procedure TfiManWSProcessor.Button2Click(Sender: TObject);
 begin
@@ -311,9 +320,6 @@ Begin
       SQL.Clear;
       SQL.Text := 'INSERT INTO ' + fCTable +'(CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
                   'VALUES (' + quotedstr(fCAlias) + ', ' + quotedstr(fDescript) + ', ''Y'', GETDATE(), ''N'')';
-      {ParamByName('CUSTOMTABLE').AsString := fCTable;
-      ParamByName('CUSTOM_ALIAS').AsString := fCAlias;
-      ParamByName('DESCRIPT').AsString := fDescript; }
       Execute;
     end;
     Result := True;
@@ -364,7 +370,7 @@ Begin
             '","name": "' + qNewWSClients.FieldByName('Name').AsString +
             '","owner": "wsadmin"}';
 
-    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
 
     rRequestCreate.Execute;
@@ -433,7 +439,7 @@ Begin
     //{"author": "epmsdev","class": "WEBDOC","default_security": "public","description": "JR Test Workspace",
     //"name": "001 - JR Test Workspace","owner": "epmsdev"}
   //  rRequestUpdate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
-    rRequestUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestUpdate.Execute;
     if rResponseUpdate.StatusCode = 200 then
@@ -474,7 +480,7 @@ Begin
               '"include": [{ "id" : "WSADMIN", "access_level" : "full_access", "type": "user" },' +
               '{ "id" : "' + fPermGroup + '", "access_level" : "full_access", "type" : "group" }]}';
   //  rRequestSetWSPerms.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
-    rRequestSetWSPerms.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestSetWSPerms.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestSetWSPerms.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestSetWSPerms.Execute;
     if rResponseSetWSPerms.StatusCode = 200 then
@@ -497,33 +503,47 @@ Begin
   end;
 End;
 
-Function TfiManWSProcessor.CreateWSRootFolders(fDBID : string):boolean;
+Function TfiManWSProcessor.CreateWSRootFolders(fDBID : string; fWSType : string):boolean;
 var
-  rBody, rProspective : string;
-  rClientProfile, rMatterProfile : string;
+  rBody, rProspective, rEmail : string;
+  rWSProfile : string;
 //  rC1Alias, rC5Alias,  : string;
 Begin
   Result := False;
 
-  rClientProfile :=  '';
-  rMatterProfile := '';
-  if qNewWSClients.FieldByName('Category').AsString = 'MATTER' then
+  rWSProfile :=  '';
+//  rMatterProfile := '';
+//  if qNewWSClients.FieldByName('Category').AsString = 'MATTER' then
+  if fWSType = 'MATTER' then
   begin
-    rMatterProfile := '';
+    if qNewWSMatters.FieldByName('CBool1').AsBoolean = True then
+    rProspective := 'true'
+  else
+    rProspective := 'false';
+    rWSProfile := '"profile": {"custom1": "' +  qNewWSMatters.FieldByName('C1Alias').AsString +
+              '","custom2": "' + qNewWSMatters.FieldByName('C2Alias').AsString +
+              '","custom3": "' + qNewWSMatters.FieldByName('C3Alias').AsString +
+              '","custom5": "' + qNewWSMatters.FieldByName('C5Alias').AsString +
+              '","custom6": "' + qNewWSMatters.FieldByName('C6Alias').AsString +
+              '","custom8": "' + qNewWSMatters.FieldByName('C8Alias').AsString +
+              '","custom23": "' + qNewWSMatters.FieldByName('F_CDate3').AsString + '"}';
+//              '","custom25": "' + rProspective  + '"}';
+    rEmail := qNewWSMatters.FieldByName('WSID').AsString;
   end
   else
   begin
-    if qNewWSClients.FieldByName('CBool1').AsBoolean = True then
-      rProspective := 'true'
-    else
-      rProspective := 'false';
-  //  rC1Alias := qNewWSClients.FieldByName('C1Alias').AsString;
-  //  rC5Alias := qNewWSClients.FieldByName('C5Alias').AsString;
-    rClientProfile :=  '"profile": { "custom1": "' + qNewWSClients.FieldByName('C1Alias').AsString +
-                                  //'","custom1_description": "' + qNewWSClients.FieldByName('C1Desc').AsString +
-                                  '","custom5": "' + qNewWSClients.FieldByName('C5Alias').AsString +
-                                  //'","custom5_description": "' + qNewWSClients.FieldByName('C5Desc').AsString +
-                                  '","custom25": "' + rProspective + '"}';
+  if qNewWSClients.FieldByName('CBool1').AsBoolean = True then
+    rProspective := 'true'
+  else
+    rProspective := 'false';
+//  rC1Alias := qNewWSClients.FieldByName('C1Alias').AsString;
+//  rC5Alias := qNewWSClients.FieldByName('C5Alias').AsString;
+    rWSProfile :=  '"profile": { "custom1": "' + qNewWSClients.FieldByName('C1Alias').AsString +
+                                //'","custom1_description": "' + qNewWSClients.FieldByName('C1Desc').AsString +
+                                '","custom5": "' + qNewWSClients.FieldByName('C5Alias').AsString + '"}';
+                                //'","custom5_description": "' + qNewWSClients.FieldByName('C5Desc').AsString +
+//                                 '","custom25": "' + rProspective + '"}';
+    rEmail := qNewWSClients.FieldByName('WSID').AsString;
   end;
   try
 
@@ -536,10 +556,10 @@ Begin
               '"description" : "Accounts/Compliance",' +
               '"default_security": "inherit",' +
               '"view_type": "document",' +
-              rClientProfile + rMatterProfile +
+              rWSProfile +
               '}';
 
-    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestCreate.Execute;
     if rResponseCreate.StatusCode = 201 then
@@ -568,11 +588,11 @@ Begin
               '"description" : "Correspondence",' +
               '"default_security": "inherit",' +
               '"view_type": "email",' +
-              '"email": "' + qNewWSClients.FieldByName('WSID').AsString + '",' +
-              rClientProfile + rMatterProfile +
+              '"email": "' + rEmail + '",' +
+              rWSProfile +
               '}';
 
-    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestCreate.Execute;
 
@@ -602,11 +622,11 @@ Begin
               '"description" : "Documents",' +
               '"default_security": "inherit",' +
               '"view_type": "document",' +
-              rClientProfile + rMatterProfile +
+              rWSProfile +
               '}';
 
   //  rRequestCreate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
-    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestCreate.Execute;
 
@@ -633,15 +653,14 @@ End;
 Function TfiManWSProcessor.test():boolean;
 var
   rBody, rWSID, rFolderID, rProspective, fDBID, fPermGroup: string;
-  rClientProfile, rMatterProfile : string;
+  rWSProfile, rEmail : string;
 Begin
   qtest.open;
   rRequestLogin.Execute;
   //Remember to update this and the test query
-  CurrentWSID := 'EU_GDG_OPEN!967529';
+  CurrentWSID := 'EU_GDG_OPEN!968363';
   fDBID := 'EU_GDG_OPEN';
-  rClientProfile :=  '';
-  rMatterProfile := '';
+  rWSProfile :=  '';
   rprospective := 'true';
 {
   rRequestUpdate.Params.Clear;
@@ -658,64 +677,137 @@ end;
 
 function TfiManWSProcessor.testfoldercreate():boolean;                  }
 
-  if qtest.FieldByName('Category').AsString = 'MATTER' then
+   if 'MATTER' = 'MATTER' then
   begin
-    rMatterProfile := '';
+    if qNewWSMatters.FieldByName('CBool1').AsBoolean = True then
+    rProspective := 'true'
+  else
+    rProspective := 'false';
+    rWSProfile := '"profile": {"custom1": "' +  qtest.FieldByName('C1Alias').AsString +
+              '","custom2": "' + qtest.FieldByName('C2Alias').AsString +
+              '","custom3": "' + qtest.FieldByName('C3Alias').AsString +
+              '","custom5": "' + qtest.FieldByName('C5Alias').AsString +
+              '","custom6": "' + qtest.FieldByName('C6Alias').AsString +
+              '","custom8": "' + qtest.FieldByName('C8Alias').AsString +
+              '","custom23": "' + qtest.FieldByName('F_CDate3').AsString + '"}';
+//              '","custom25": "' + rProspective  + '"}';
+    rEmail := qtest.FieldByName('WSID').AsString;
   end
   else
   begin
-    if qtest.FieldByName('CBool1').AsBoolean = True then
-      rProspective := 'true'
-    else
-      rProspective := 'false';
+  if qNewWSClients.FieldByName('CBool1').AsBoolean = True then
+    rProspective := 'true'
+  else
+    rProspective := 'false';
+//  rC1Alias := qNewWSClients.FieldByName('C1Alias').AsString;
+//  rC5Alias := qNewWSClients.FieldByName('C5Alias').AsString;
+    rWSProfile :=  '"profile": { "custom1": "' + qNewWSClients.FieldByName('C1Alias').AsString +
+                                //'","custom1_description": "' + qNewWSClients.FieldByName('C1Desc').AsString +
+                                '","custom5": "' + qNewWSClients.FieldByName('C5Alias').AsString + '"}';
+                                //'","custom5_description": "' + qNewWSClients.FieldByName('C5Desc').AsString +
+//                                 '","custom25": "' + rProspective + '"}';
+    rEmail := qNewWSClients.FieldByName('WSID').AsString;
+  end;
+  try
 
-    rRequestUpdate.Params.Clear;
-    rRequestUpdate.Resource := v2APIBase + qtest.FieldByName('DBId').AsString + '/workspaces/' + CurrentWSID;
-    ///work/api/v2/customers/{customerId}/libraries/{libraryId}/workspaces/{workspaceId}
-    rBody := '{"custom1": "' +  qtest.FieldByName('C1Alias').AsString +
-              '","custom5": "' + qtest.FieldByName('C5Alias').AsString +
-              '","custom25": "' + rProspective  +
-              '","sub_class": "CLIENT' +
-              '","project_custom1": "' + qtest.FieldByName('C1Alias').AsString +
-              '","project_custom2": "' + qtest.FieldByName('TemplateId').AsString +
-              '","project_custom3": "Worksite"}';
+    rRequestCreate.ClearBody;
 
-    {
-    '{"author": "epmsdev","class": "WEBDOC","default_security": "' + qNewWSClients.FieldByName('DefaultVisibility').AsString +
-            '","description": "' + qNewWSClients.FieldByName('Description').AsString +
-            '","name": "' + qNewWSClients.FieldByName('Name').AsString +
-            '","owner": "epmsdev"}
-            //';  }
+    rResponseCreate.Content.Empty;
+    rRequestCreate.Params.Clear;
+    rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+    rBody := '{"name": "Accounts/Compliance", ' +
+              '"description" : "Accounts/Compliance",' +
+              '"default_security": "inherit",' +
+              '"view_type": "document",' +
+              rWSProfile +
+              '}';
 
-    //{"author": "epmsdev","class": "WEBDOC","default_security": "public","description": "JR Test Workspace",
-    //"name": "001 - JR Test Workspace","owner": "epmsdev"}
-  //  rRequestUpdate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
-    rRequestUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
-    rRequestUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
-    rRequestUpdate.Execute;
-    if rResponseUpdate.StatusCode = 200 then
+    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
+    rRequestCreate.Execute;
+    if rResponseCreate.StatusCode = 201 then
     begin
-      //update staging with folder id
-   {   rResponseCreate.GetSimpleValue('workspace_id', rWSID);
-      rFolderID := rWSID.Substring(pos(rWSID,'!')+1);
-      qUpdateWSID.ParamByName('UniqueID').AsString := rFolderID;
-      qUpdateWSID.Execute;    }
       result := True;
-      Log_WS_MetaData := 'Y';
+      Log_WSRootFolders := '[Acc/Comp = Y]';
     end
     else
     begin
       //record failure
       result := False;
-      Log_WS_MetaData := 'Status = ' + IntToStr(rResponseUpdate.StatusCode);
+      Log_WSRootFolders := '[Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
     end;
-
-{  except on E: Exception do
+  except on E: Exception do
     begin
       result := False;
-      Log_WS_MetaData := 'Status = ' + IntToStr(rResponseUpdate.StatusCode);
+      Log_WSRootFolders := 'Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
     end;
-}  end;
+  end;
+
+  try
+    rResponseCreate.Content.Empty;
+    rRequestCreate.Params.Clear;
+    rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+    rBody := '{"name": "Correspondence", ' +
+              '"description" : "Correspondence",' +
+              '"default_security": "inherit",' +
+              '"view_type": "email",' +
+              '"email": "' + rEmail + '",' +
+              rWSProfile +
+              '}';
+
+    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
+    rRequestCreate.Execute;
+
+    if rResponseCreate.StatusCode = 201 then
+      begin
+        result := True;
+        Log_WSRootFolders := Log_WSRootFolders + ' [Correspondence = Y]';
+      end
+      else
+      begin
+        //record failure
+        result := False;
+        Log_WSRootFolders := '[Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+      end;
+    except on E: Exception do
+      begin
+        result := False;
+        Log_WSRootFolders := '[Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+      end;
+    end;
+
+  try
+    rResponseCreate.Content.Empty;
+    rRequestCreate.Params.Clear;
+    rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+    rBody := '{"name": "Documents", ' +
+              '"description" : "Documents",' +
+              '"default_security": "inherit",' +
+              '"view_type": "document",' +
+              rWSProfile +
+              '}';
+
+  //  rRequestCreate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
+    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
+    rRequestCreate.Execute;
+
+    if rResponseCreate.StatusCode = 201 then
+    begin
+      result := True;
+      Log_WSRootFolders := Log_WSRootFolders + ' [Documents = Y]';
+    end
+    else
+    begin
+      //record failure
+      result := False;
+      Log_WSRootFolders := '[Documents = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+    end;
+  finally
+  end;
+
+//  end;
 
 End;
 
@@ -806,13 +898,19 @@ Begin
                             qNewWSMatters.FieldByName('C3Desc').AsString);
         end;
 
+        If Not CheckPrevRef(qNewWSMatters.FieldByName('C6Alias').AsString, qNewWSMatters.FieldByName('DBId').AsString) Then
+        begin
+          //Create New Custom3
+          CreateCustomAlias(qNewWSMatters.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM6', qNewWSMatters.FieldByName('C6Alias').AsString, '');
+        end;
+
         //Create new Matter workspace
         rRequestLogin.Execute;
         If CreateMatterWS then
         begin
           UpdateMatterWS;
           SetWSPerms(qNewWSMatters.FieldByName('DBId').AsString, qNewWSMatters.FieldByName('Default_Security_Group').AsString);
-          CreateWSRootFolders(qNewWSMatters.FieldByName('DBId').AsString);
+          CreateWSRootFolders(qNewWSMatters.FieldByName('DBId').AsString, 'MATTER');
         end
       End
       else
@@ -898,8 +996,40 @@ Begin
 
   except on E: Exception do
     begin
+      result := False;
+      Log_WS_MetaData := 'Status = ' + IntToStr(rResponseUpdate.StatusCode);
+    end;
+  end;
+End;
+
+Function TfiManWSProcessor.CheckPrevRef(fPrevRef : string; fDB : string) : boolean;
+Begin
+  try
+    Result := False;
+    With qCheckPrevRef Do
+    Begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select * from ' + fDB + '.MHGROUP.CUSTOM6 ' +
+                  'where CUSTOM_ALIAS = ' + QuotedStr(fPrevRef);
+      Open;
+      if IsEmpty then
+      begin
+        Result := False;
+        Log_Custom6 := 'N';
+      end
+      else
+      begin
+        Result := True;
+        Log_Custom6 := 'Exists';
+      end;
+      Close;
+    End;
+
+  except on E: Exception do
+    begin
       Result := False;
-      Log_Custom3 := 'Error';
+      Log_Custom6 := 'Error';
     end;
   end;
 End;
@@ -922,7 +1052,7 @@ Begin
             '","name": "' + qNewWSMatters.FieldByName('Name').AsString +
             '","owner": "wsadmin"}';
 
-    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
 
     rRequestCreate.Execute;
@@ -978,7 +1108,7 @@ Begin
               '","custom5": "' + qNewWSMatters.FieldByName('C5Alias').AsString +
               '","custom6": "' + qNewWSMatters.FieldByName('C6Alias').AsString +
               '","custom8": "' + qNewWSMatters.FieldByName('C8Alias').AsString +
-              '","custom23": "' + qNewWSMatters.FieldByName('CDate3').AsString +
+              '","custom23": "' + qNewWSMatters.FieldByName('F_CDate3').AsString +
               '","custom25": "' + rProspective  +
               '","sub_class": "MATTER' +
 //              '","subclass": "MATTER' +
@@ -987,7 +1117,7 @@ Begin
               '","project_custom3": "Worksite"}';
 
 
-    rRequestUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY, [TRESTRequestParameterOption.poDoNotEncode]);
+    rRequestUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestUpdate.Execute;
     if rResponseUpdate.StatusCode = 200 then

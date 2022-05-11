@@ -13,14 +13,14 @@ object fiManWSProcessor: TfiManWSProcessor
   OldCreateOrder = False
   PixelsPerInch = 96
   TextHeight = 13
-  object Button1: TButton
+  object bCreateClientWS: TButton
     Left = 752
     Top = 80
     Width = 75
     Height = 25
     Caption = 'Run Client'
     TabOrder = 0
-    OnClick = Button1Click
+    OnClick = bCreateClientWSClick
   end
   object Button2: TButton
     Left = 752
@@ -30,6 +30,15 @@ object fiManWSProcessor: TfiManWSProcessor
     Caption = 'test'
     TabOrder = 1
     OnClick = Button2Click
+  end
+  object bCreateMatterWS: TButton
+    Left = 752
+    Top = 160
+    Width = 75
+    Height = 25
+    Caption = 'Run Matter'
+    TabOrder = 2
+    OnClick = bCreateMatterWSClick
   end
   object iManageSQLServer: TSQLServerUniProvider
     Left = 256
@@ -80,7 +89,8 @@ object fiManWSProcessor: TfiManWSProcessor
   object qNewWSMatters: TUniQuery
     Connection = iManageSQLConn
     SQL.Strings = (
-      'select * '
+      'select *,'
+      'convert(varchar, CDate3, 23) as F_CDate3 '
       'from Staging'
       'where FolderId is null'
       'and Category = '#39'MATTER'#39
@@ -102,6 +112,7 @@ object fiManWSProcessor: TfiManWSProcessor
   object RESTClient3: TRESTClient
     Accept = '*/*'
     AcceptCharset = 'UTF-8, *;q=0.8'
+    AcceptEncoding = 'gzip, deflate, br'
     BaseURL = 'https://imancontrol.incegd.com/'
     ContentType = 'application/json'
     Params = <>
@@ -338,8 +349,8 @@ object fiManWSProcessor: TfiManWSProcessor
     SQL.Strings = (
       'select top 1 * '
       'from eu_gdg_open.MHGROUP.PROJECTS where CUSTOM1 = '#39'G.TES.4-1'#39)
-    Left = 144
-    Top = 248
+    Left = 152
+    Top = 216
   end
   object RESTRequest1test: TRESTRequest
     Accept = '*/*'
@@ -350,15 +361,14 @@ object fiManWSProcessor: TfiManWSProcessor
       item
         Kind = pkREQUESTBODY
         name = 'body'
-        Options = [poDoNotEncode]
         Value = 
           '{"author": "wsadmin","class": "WEBDOC","default_security": "priv' +
-          'ate","description": "001.BOD10 - Alan & Patricia Joan Bodill","n' +
-          'ame": "001.BOD10 - Alan & Patricia Joan Bodill","owner": "wsadmi' +
-          'n"}'
+          'ate","description": "001.41469-5 - Santander Facility '#8211' Terrafir' +
+          'ma '#8211' Refinancing","name": "001.41469-5 - Santander Facility '#8211' Te' +
+          'rrafirma '#8211' Refinancing","owner": "wsadmin"}'
         ContentType = ctAPPLICATION_JSON
       end>
-    Resource = 'work/api/v2/customers/100/libraries/EU_GDG_OPEN/workspaces'
+    Resource = 'work/api/v2/customers/100/libraries/eu_gdg_open/workspaces'
     Response = RESTResponse1test
     SynchronizedEvents = False
     Left = 352
@@ -416,8 +426,8 @@ object fiManWSProcessor: TfiManWSProcessor
       '      :Log_Date'
       '      )'
       '')
-    Left = 152
-    Top = 312
+    Left = 160
+    Top = 280
     ParamData = <
       item
         DataType = ftUnknown
@@ -499,5 +509,15 @@ object fiManWSProcessor: TfiManWSProcessor
         Name = 'Log_Date'
         Value = nil
       end>
+  end
+  object qCheckPrevRef: TUniQuery
+    Connection = iManageSQLConn
+    SQL.Strings = (
+      'select * '
+      'from Staging'
+      'where FolderId is null'
+      'and Category = '#39'CLIENT'#39)
+    Left = 152
+    Top = 328
   end
 end

@@ -13,9 +13,6 @@ Coordinates=140,437,120,36
 [qNewWSMatters]
 Coordinates=196,364,110,58
 
-[Button1]
-Coordinates=127,364,59,58
-
 []
 Coordinates=550,190,88,51
 Visible=False
@@ -94,4 +91,7 @@ Coordinates=290,1,59,58
 
 [qtest]
 Coordinates=290,78,43,58
+
+[bCreateClientWS]
+Coordinates=127,364,59,58
 
