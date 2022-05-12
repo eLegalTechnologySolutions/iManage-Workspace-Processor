@@ -52,6 +52,7 @@ type
     procedure bCreateClientWSClick(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure bCreateMatterWSClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
   private
     { Private declarations }
     CurrentWSID: string;
@@ -599,6 +600,21 @@ Begin
     end;
   end;
 End;
+
+procedure TfiManWSProcessor.FormShow(Sender: TObject);
+begin
+  try
+    CreateClient;
+  except on E: Exception do
+  end;
+
+  try
+  CreateMatter;  
+  except on E: Exception do
+  end;
+
+  Close;
+end;
 
 Function TfiManWSProcessor.test():boolean;
 var
