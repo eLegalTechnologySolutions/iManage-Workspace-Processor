@@ -60,6 +60,7 @@ type
     Log_Custom1, Log_Custom2, Log_Custom3, Log_Custom5, Log_Custom6, Log_Custom8 : string;
     Log_Workspace_ID, Log_WS_MetaData, Log_Permissions : string;
     Log_WSRootFolders, Log_Extra_Data : string;
+    ExistingFolderID : string;
 
     Function CheckWSExists(fWSID : string; fDB : string):boolean;
     Function CheckClientID(fClientID : string; fDB : string):boolean;
@@ -80,13 +81,11 @@ type
     Function CheckDept(fDept : string; fDB : string):boolean;
     Function UpdateMatterWS():boolean;
     Function CheckPrevRef(fPrevRef : string; fDB : string):boolean;
-    Procedure UpdateStagingWithFolderID(Sender: TObject);
 //    function testfoldercreate():boolean;
   public
     { Public declarations }
     AuthToken: string;
-//    AuthTokenType: string;
-//    AuthTokenExpire: integer;
+
   end;
 
 var
@@ -98,46 +97,12 @@ const
 implementation
 uses
   system.json;
-//  REST.Types,
-//  REST.Utils;
+
 {$R *.dfm}
 
 procedure TfiManWSProcessor.bCreateClientWSClick(Sender: TObject);
-//var
-//  DBConn : TUniConnection;
-//  AuthExpireText : string;
-//  obj, data: TJSONObject;
-//  response : TclJSONObject;
+
 begin
-
-//  OAuth2Auth1.
-//  RESTRQiManWS_Login.Execute;
-
-//  obj := RESTRSWS1.JSONValue as TJSONObject;
-//  response := RESTRSWS1.ParseObject(responseBody.DataString);
-//  data := obj.Values[''] as TJSONObject;
-//  RESTRSWS1.GetSimpleValue('access_token');
-//  Edit1.Text := data.ToString;
-//RESTRSWS1.JSONText('access_token');
-//OAuth2Auth1.AccessToken := Edit1.Text;
-{  With RESTRequest1 do
-  begin
-    AddAuthParameter('grant_type', 'Password', pkGETorPOST);
-//    AddAuthParameter(');
-  end;
-}
-{
-  RESTRSWS_Login.GetSimpleValue('access_token', AuthToken);
-  RESTRSWS_Login.GetSimpleValue('token_type', AuthTokenType);
-  RESTRSWS_Login.GetSimpleValue('expires_in', AuthExpireText);
-  AuthTokenExpire := AuthExpireText.ToInteger;
-
-  RESTrequest1.AddAuthParameter('x-auth-token',AuthToken, pkHTTPHEADER);
-  RESTrequest1.AddAuthParameter('token_type',AuthTokenType, pkHTTPHEADER);
-  RESTrequest1.AddAuthParameter('expires_in',AuthExpireText, pkHTTPHEADER);
-}
-//  qNewWSClients.Open;
-  //rRequestLogin.Execute;
 
     CreateClient;
 
@@ -151,7 +116,6 @@ Begin
   begin
   try
       InitialiseVars;
-      //CurrentWSID := '';
       Log_WSID := qNewWSClients.FieldByName('WSID').AsString;
       If not CheckWSExists(qNewWSClients.FieldByName('C1Alias').AsString, qNewWSClients.FieldByName('DBId').AsString) Then
       Begin
@@ -180,7 +144,16 @@ Begin
       End
       else
       begin
-        //Client Workspace already exists
+        //Client Workspace already exists - update folderid in staging table (Probably will only be for workspaces created between WSC db backup and the 'incident')
+        if ExistingFolderID <> '' then
+        begin
+          qUpdateWSID.Close;
+          qUpdateWSID.ParamByName('FolderID').AsString := ExistingFolderID;
+          qUpdateWSID.ParamByName('UniqueID').AsString := qNewWSClients.FieldByName('C1Alias').AsString;
+          qUpdateWSID.Execute;
+
+          Log_Workspace_ID := qNewWSClients.FieldByName('DBId').AsString + '!' + ExistingFolderID;
+        end;
       end;
 
   except on E: Exception do
@@ -195,9 +168,6 @@ Begin
   end;
 
   qNewWSClients.Close;
-
-//  rRequestLogin.Execute;
-//  rResponseLogin.GetSimpleValue('X-Auth-token', AuthToken);
 
 end;
 
@@ -222,7 +192,8 @@ Begin
       begin
         Result := True;
         Log_WSID_Exist := 'Y';
-      Close;
+        ExistingFolderID := FieldByName('PRJ_ID').AsString;
+        Close;
       end;
     end;
   except on E: Exception do
@@ -357,6 +328,7 @@ End;
 Function TfiManWSProcessor.CreateClientWS():boolean;
 var
   rBody, rFolderID, rLongDB : string;
+  rWSName, rWSDescription : string;
   ClientJSONObject : tjsonobject;
 Begin
   try
@@ -364,12 +336,19 @@ Begin
     rResponseCreate.Content.Empty;
 
     rRequestCreate.Params.Clear;
+    //Remove double quotes from name and description
+    rWSName := StringReplace(qNewWSClients.FieldByName('Name').AsString,'"','''',[rfReplaceAll]);
+    rWSDescription := StringReplace(qNewWSClients.FieldByName('Description').AsString,'"','''',[rfReplaceAll]);
+
     rRequestCreate.Resource := v2APIBase + qNewWSClients.FieldByName('DBId').AsString + '/workspaces';
     rBody := '{"author": "wsadmin","class": "WEBDOC","default_security": "' +
             LowerCase(qNewWSClients.FieldByName('DefaultVisibility').AsString) +
-            '","description": "' + qNewWSClients.FieldByName('Description').AsString +
-            '","name": "' + qNewWSClients.FieldByName('Name').AsString +
+            '","description": "' + rWSDescription +
+            '","name": "' + rWSName +
             '","owner": "wsadmin"}';
+
+    rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
 
     rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
@@ -388,8 +367,6 @@ Begin
       qUpdateWSID.Execute;
       result := True;
       Log_Workspace_ID := CurrentWSID;
-//    ClientJSONObject.Free;
-
     end
     else
     begin
@@ -420,36 +397,19 @@ Begin
       rProspective := 'false';
     rRequestUpdate.Params.Clear;
     rRequestUpdate.Resource := v2APIBase + qNewWSClients.FieldByName('DBId').AsString + '/workspaces/' + CurrentWSID;
-    ///work/api/v2/customers/{customerId}/libraries/{libraryId}/workspaces/{workspaceId}
     rBody := '{"custom1": "' +  qNewWSClients.FieldByName('C1Alias').AsString +
               '","custom5": "' + qNewWSClients.FieldByName('C5Alias').AsString +
               '","custom25": "' + rProspective  +
               '","sub_class": "CLIENT' +
- //             '","subclass": "CLIENT' +
               '","project_custom1": "' + qNewWSClients.FieldByName('C1Alias').AsString +
               '","project_custom2": "' + qNewWSClients.FieldByName('TemplateId').AsString +
               '","project_custom3": "Worksite"}';
 
-    {
-    '{"author": "epmsdev","class": "WEBDOC","default_security": "' + qNewWSClients.FieldByName('DefaultVisibility').AsString +
-            '","description": "' + qNewWSClients.FieldByName('Description').AsString +
-            '","name": "' + qNewWSClients.FieldByName('Name').AsString +
-            '","owner": "epmsdev"}
-            //';  }
-
-    //{"author": "epmsdev","class": "WEBDOC","default_security": "public","description": "JR Test Workspace",
-    //"name": "001 - JR Test Workspace","owner": "epmsdev"}
-  //  rRequestUpdate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
     rRequestUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestUpdate.Execute;
     if rResponseUpdate.StatusCode = 200 then
     begin
-      //update staging with folder id
-   {   rResponseCreate.GetSimpleValue('workspace_id', rWSID);
-      rFolderID := rWSID.Substring(pos(rWSID,'!')+1);
-      qUpdateWSID.ParamByName('UniqueID').AsString := rFolderID;
-      qUpdateWSID.Execute;    }
       result := True;
       Log_WS_MetaData := 'Y';
     end
@@ -480,7 +440,6 @@ Begin
     rBody := '{"default_security": "private", ' +
               '"include": [{ "id" : "WSADMIN", "access_level" : "full_access", "type": "user" },' +
               '{ "id" : "' + fPermGroup + '", "access_level" : "full_access", "type" : "group" }]}';
-  //  rRequestSetWSPerms.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
     rRequestSetWSPerms.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestSetWSPerms.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestSetWSPerms.Execute;
@@ -508,13 +467,10 @@ Function TfiManWSProcessor.CreateWSRootFolders(fDBID : string; fWSType : string)
 var
   rBody, rProspective, rEmail : string;
   rWSProfile : string;
-//  rC1Alias, rC5Alias,  : string;
 Begin
   Result := False;
 
   rWSProfile :=  '';
-//  rMatterProfile := '';
-//  if qNewWSClients.FieldByName('Category').AsString = 'MATTER' then
   if fWSType = 'MATTER' then
   begin
     if qNewWSMatters.FieldByName('CBool1').AsBoolean = True then
@@ -528,7 +484,6 @@ Begin
               '","custom6": "' + qNewWSMatters.FieldByName('C6Alias').AsString +
               '","custom8": "' + qNewWSMatters.FieldByName('C8Alias').AsString +
               '","custom23": "' + qNewWSMatters.FieldByName('F_CDate3').AsString + '"}';
-//              '","custom25": "' + rProspective  + '"}';
     rEmail := qNewWSMatters.FieldByName('WSID').AsString;
   end
   else
@@ -537,13 +492,8 @@ Begin
     rProspective := 'true'
   else
     rProspective := 'false';
-//  rC1Alias := qNewWSClients.FieldByName('C1Alias').AsString;
-//  rC5Alias := qNewWSClients.FieldByName('C5Alias').AsString;
     rWSProfile :=  '"profile": { "custom1": "' + qNewWSClients.FieldByName('C1Alias').AsString +
-                                //'","custom1_description": "' + qNewWSClients.FieldByName('C1Desc').AsString +
                                 '","custom5": "' + qNewWSClients.FieldByName('C5Alias').AsString + '"}';
-                                //'","custom5_description": "' + qNewWSClients.FieldByName('C5Desc').AsString +
-//                                 '","custom25": "' + rProspective + '"}';
     rEmail := qNewWSClients.FieldByName('WSID').AsString;
   end;
   try
@@ -626,7 +576,6 @@ Begin
               rWSProfile +
               '}';
 
-  //  rRequestCreate.AddParameter('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
     rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestCreate.Execute;
@@ -830,6 +779,7 @@ Begin
   Log_Permissions := '';
   Log_WSRootFolders := '';
   Log_Extra_Data := '';
+  ExistingFolderID := '';
 End;
 
 Procedure TfiManWSProcessor.WriteLog();
@@ -868,7 +818,6 @@ Begin
   begin
   try
       InitialiseVars;
-      //CurrentWSID := '';
       Log_WSID := qNewWSMatters.FieldByName('WSID').AsString;
       If not CheckWSExists(qNewWSMatters.FieldByName('C2Alias').AsString, qNewWSMatters.FieldByName('DBId').AsString) Then
       Begin
@@ -901,7 +850,7 @@ Begin
 
         If Not CheckPrevRef(qNewWSMatters.FieldByName('C6Alias').AsString, qNewWSMatters.FieldByName('DBId').AsString) Then
         begin
-          //Create New Custom3
+          //Create New Custom6
           CreateCustomAlias(qNewWSMatters.FieldByName('DBId').AsString + '.MHGROUP.CUSTOM6', qNewWSMatters.FieldByName('C6Alias').AsString, '');
         end;
 
@@ -916,7 +865,16 @@ Begin
       End
       else
       begin
-        //Matter Workspace already exists - update folderid in staging table
+        //Matter Workspace already exists - update folderid in staging table (Probably will only be for workspaces created between WSC db backup and the 'incident')
+        if ExistingFolderID <> '' then
+        begin
+          qUpdateWSID.Close;
+          qUpdateWSID.ParamByName('FolderID').AsString := ExistingFolderID;
+          qUpdateWSID.ParamByName('UniqueID').AsString := qNewWSMatters.FieldByName('C2Alias').AsString;
+          qUpdateWSID.Execute;
+
+          Log_Workspace_ID := qNewWSMatters.FieldByName('DBId').AsString + '!' + ExistingFolderID;
+        end;
       end;
 
   except on E: Exception do
@@ -931,9 +889,6 @@ Begin
   end;
 
   qNewWSMatters.Close;
-
-//  rRequestLogin.Execute;
-//  rResponseLogin.GetSimpleValue('X-Auth-token', AuthToken);
 
 end;
 
@@ -1039,6 +994,7 @@ End;
 Function TfiManWSProcessor.CreateMatterWS():boolean;
 var
   rBody, rFolderID, rLongDB : string;
+  rWSName, rWSDescription : string;
   MatterJSONObject : TJsonObject;
 Begin
   try
@@ -1046,15 +1002,23 @@ Begin
     rResponseCreate.Content.Empty;
 
     rRequestCreate.Params.Clear;
+    //Remove double quotes from name and description
+    rWSName := StringReplace(qNewWSMatters.FieldByName('Name').AsString,'"','''',[rfReplaceAll]);
+    rWSDescription := StringReplace(qNewWSMatters.FieldByName('Description').AsString,'"','''',[rfReplaceAll]);
+
     rRequestCreate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces';
     rBody := '{"author": "wsadmin","class": "WEBDOC","default_security": "' +
             LowerCase(qNewWSMatters.FieldByName('DefaultVisibility').AsString) +
-            '","description": "' + qNewWSMatters.FieldByName('Description').AsString +
-            '","name": "' + qNewWSMatters.FieldByName('Name').AsString +
+            '","description": "' + rWSDescription +
+            '","name": "' + rWSName +
             '","owner": "wsadmin"}';
+
+    rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
 
     rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
+
 
     rRequestCreate.Execute;
     if rResponseCreate.StatusCode = 201 then
@@ -1070,7 +1034,6 @@ Begin
       qUpdateWSID.Execute;
       result := True;
       Log_Workspace_ID := CurrentWSID;
-//    ClientJSONObject.Free;
 
     end
     else
@@ -1102,7 +1065,6 @@ Begin
       rProspective := 'false';
     rRequestUpdate.Params.Clear;
     rRequestUpdate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces/' + CurrentWSID;
-    ///work/api/v2/customers/{customerId}/libraries/{libraryId}/workspaces/{workspaceId}
     rBody := '{"custom1": "' +  qNewWSMatters.FieldByName('C1Alias').AsString +
               '","custom2": "' + qNewWSMatters.FieldByName('C2Alias').AsString +
               '","custom3": "' + qNewWSMatters.FieldByName('C3Alias').AsString +
@@ -1112,7 +1074,6 @@ Begin
               '","custom23": "' + qNewWSMatters.FieldByName('F_CDate3').AsString +
               '","custom25": "' + rProspective  +
               '","sub_class": "MATTER' +
-//              '","subclass": "MATTER' +
               '","project_custom1": "' + qNewWSMatters.FieldByName('C2Alias').AsString +
               '","project_custom2": "' + qNewWSMatters.FieldByName('TemplateId').AsString +
               '","project_custom3": "Worksite"}';
@@ -1123,11 +1084,6 @@ Begin
     rRequestUpdate.Execute;
     if rResponseUpdate.StatusCode = 200 then
     begin
-      //update staging with folder id
-   {   rResponseCreate.GetSimpleValue('workspace_id', rWSID);
-      rFolderID := rWSID.Substring(pos(rWSID,'!')+1);
-      qUpdateWSID.ParamByName('UniqueID').AsString := rFolderID;
-      qUpdateWSID.Execute;    }
       result := True;
       Log_WS_MetaData := 'Y';
     end
@@ -1146,9 +1102,5 @@ Begin
   end;
 End;
 
-Procedure TfiManWSProcessor.UpdateStagingWithFolderID(Sender: TObject);
-Begin
-    //
-End;
 
 end.
