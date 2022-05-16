@@ -62,10 +62,9 @@ object fiManWSProcessor: TfiManWSProcessor
   object iManageTargetDB: TUniConnection
     ProviderName = 'SQL Server'
     Port = 1433
-    Database = 'WSC_COPY'
+    Database = 'WSC'
     Username = 'sa'
     Server = 'EUIMANSQL01.INCEGD.COM'
-    Connected = True
     LoginPrompt = False
     Left = 384
     Top = 8
