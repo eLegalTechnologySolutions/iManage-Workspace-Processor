@@ -50,7 +50,7 @@ type
     qCheckPrevRef: TUniQuery;
     rRequestWSUpdate: TRESTRequest;
     rResponseWSUpdate: TRESTResponse;
-    Button1: TButton;
+    bRunWSUpdates: TButton;
     qUpdateWSMetaData: TUniQuery;
     qGetWSUpdateData: TUniQuery;
     qUpdateQueue: TUniQuery;
@@ -60,6 +60,7 @@ type
     procedure Button2Click(Sender: TObject);
     procedure bCreateMatterWSClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure bRunWSUpdatesClick(Sender: TObject);
   private
     { Private declarations }
     CurrentWSID: string;
@@ -220,6 +221,11 @@ End;
 procedure TfiManWSProcessor.bCreateMatterWSClick(Sender: TObject);
 begin
   CreateMatter;
+end;
+
+procedure TfiManWSProcessor.bRunWSUpdatesClick(Sender: TObject);
+begin
+  UpdateWSMetaData;
 end;
 
 procedure TfiManWSProcessor.Button2Click(Sender: TObject);
@@ -615,6 +621,7 @@ End;
 
 procedure TfiManWSProcessor.FormShow(Sender: TObject);
 begin
+{
   try
     CreateClient;
   except on E: Exception do
@@ -626,6 +633,7 @@ begin
   end;
 
   Close;
+}
 end;
 
 Function TfiManWSProcessor.test():boolean;
@@ -1138,7 +1146,7 @@ Begin
     begin
       Close;
       SQL.Clear;
-      SQL.Text := 'select s.C1Alias, s.C1Desc, s.dbid ' +
+      SQL.Text := 'select distinct s.C1Alias, s.C1Desc, s.dbid ' +
                   'from Staging s ' +
                   'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' and uq.processcode = 11 ';
       Open;
@@ -1150,7 +1158,7 @@ Begin
         qUpdateWSMetaData.SQL.Text := 'Update ' + FieldByName('DBID').AsString + '.MHGROUP.Custom1 ' +
                                       'Set C_DESCRIPT = ' + QuotedStr(FieldByName('C1Desc').AsString) +
                                       ' Where CUSTOM_ALIAS = ' + QuotedStr(FieldByName('C1Alias').AsString);
-        Execute;
+        qUpdateWSMetaData.Execute;
         Next;
       end;
       qUpdateWSMetaData.Close;
@@ -1166,7 +1174,7 @@ Begin
     begin
       Close;
       SQL.Clear;
-      SQL.Text := 'select s.C1Alias, s.C1Desc, s.dbid ' +
+      SQL.Text := 'select distinct s.C2Alias, s.C2Desc, s.dbid ' +
                   'from Staging s ' +
                   'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' and uq.processcode = 12 ';
       Open;
@@ -1178,7 +1186,7 @@ Begin
         qUpdateWSMetaData.SQL.Text := 'Update ' + FieldByName('DBID').AsString + '.MHGROUP.Custom2 ' +
                                       'Set C_DESCRIPT = ' + QuotedStr(FieldByName('C2Desc').AsString) +
                                       ' Where CUSTOM_ALIAS = ' + QuotedStr(FieldByName('C2Alias').AsString);
-        Execute;
+        qUpdateWSMetaData.Execute;
         Next;
       end;
       qUpdateWSMetaData.Close;
@@ -1187,7 +1195,7 @@ Begin
 
   except on E: Exception do
   end;
-
+{
   try
   //Update Department Description
     with qGetWSUpdateData do
@@ -1203,10 +1211,10 @@ Begin
       begin
         qUpdateWSMetaData.Close;
         qUpdateWSMetaData.SQL.Clear;
-        qUpdateWSMetaData.SQL.Text := 'Update ' + FieldByName('DBID').AsString + '.MHGROUP.Custom2 ' +
-                                      'Set C_DESCRIPT = ' + QuotedStr(FieldByName('C2Desc').AsString) +
-                                      ' Where CUSTOM_ALIAS = ' + QuotedStr(FieldByName('C2Alias').AsString);
-        Execute;
+        qUpdateWSMetaData.SQL.Text := 'Update ' + FieldByName('DBID').AsString + '.MHGROUP.Custom3 ' +
+                                      'Set C_DESCRIPT = ' + QuotedStr(FieldByName('C3Desc').AsString) +
+                                      ' Where CUSTOM_ALIAS = ' + QuotedStr(FieldByName('C3Alias').AsString);
+        qUpdateWSMetaData.Execute;
         Next;
       end;
       qUpdateWSMetaData.Close;
@@ -1215,7 +1223,7 @@ Begin
 
   except on E: Exception do
   end;
-
+}
   try
   //Insert New Department(s)
     with qGetWSUpdateData do
@@ -1243,11 +1251,13 @@ Begin
                                         'Merge Into ' + FieldByName('DBID').AsString + '.mhgroup.custom3 as c3 ' +
                                         'Using (select ' + QuotedStr(FieldByName('C3Alias').AsString) + ' as ALIAS) as NewC ' +
                                         'On c3.custom_alias = NewC.Alias ' +
+                                        'When Matched Then ' +
+                                        'Update Set C_DESCRIPT = ' + QuotedStr(FieldByName('C3Desc').AsString) +
                                         'When Not Matched Then ' +
 	                                      'Insert (CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
 	                                      'Values ( ' + QuotedStr(FieldByName('C3Alias').AsString) + ', ' +
-                                         QuotedStr(FieldByName('C3Desc').AsString) + ', ''Y'', GETDATE(), ''N'')';
-        Execute;
+                                         QuotedStr(FieldByName('C3Desc').AsString) + ', ''Y'', GETDATE(), ''N'');';
+        qUpdateWSMetaData.Execute;
         Next;
       end;
       qUpdateWSMetaData.Close;
@@ -1335,11 +1345,9 @@ Begin
               '","custom23": "' + qGetWSUpdateData.FieldByName('F_CDate3').AsString +
               '","custom24": "' + qGetWSUpdateData.FieldByName('F_CDate4').AsString +
               '","custom25": "' + rProspective  + '"}';
-//              '","sub_class": "MATTER' +
-//              '","project_custom1": "' + fCustom1 +
-//              '","project_custom2": "' + qGetWSUpdateData.FieldByName('TemplateId').AsString +
-//              '","project_custom3": "Worksite"}';
 
+    rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
 
     rRequestWSUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY);
     rRequestWSUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
@@ -1364,7 +1372,7 @@ End;
 Function TfiManWSProcessor.UpdateWSRootFolderData(fFolderName : string):boolean;
 var
   rBody, rWSID : string;
-  MatterJSONObject : TJsonObject;
+  FolderJSONArray, FolderIDArray : TJsonArray;
   FolderID, rCustom1 : string;
 Begin
   try
@@ -1384,17 +1392,20 @@ Begin
     rRequestGetFolderID.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY);
     rRequestGetFolderID.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
 
-    rRequestCreate.Execute;
-    if rResponseCreate.StatusCode = 201 then
+    rRequestGetFolderID.Execute;
+    if rResponseGetFolderID.StatusCode = 200 then
     begin
       //Get FolderID
-      MatterJSONObject := rResponseCreate.JSONValue as TJSONObject;
-      FolderID := MatterJSONObject.GetValue('id').Value;
+      FolderJSONArray := rResponseGetFolderID.JSONValue as TJSONArray;
+      //FolderIDArray := FolderJSONArray.Get('id').
+      //FolderID := FolderJSONArray.GetValue('id').Value;
+      FolderID := ((FolderJSONArray as TJSONArray).Items[0] as TJSonObject).Get('id').JSONValue.Value;
+      //FolderID := FolderJSONArray.GetValue('id')
 
       //Update Folder metadata
       rRequestWSUpdate.Resource  := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/' + FolderID;
       rResponseWSUpdate.Content.Empty;
-      rRequestGetFolderID.Params.Clear;
+      rRequestWSUpdate.Params.Clear;
 
       if qGetWSUpdateData.FieldByName('Category').AsString = 'MATTER' then
         rCustom1 := '"custom1": "' +  qGetWSUpdateData.FieldByName('C1Alias').AsString + '",'
@@ -1402,7 +1413,7 @@ Begin
         rCustom1 := '';
 
       rBody :=  '{"profile": {' + rCustom1 +
-                '","custom3": "' + qGetWSUpdateData.FieldByName('C3Alias').AsString +
+                '"custom3": "' + qGetWSUpdateData.FieldByName('C3Alias').AsString +
                 '","custom6": "' + qGetWSUpdateData.FieldByName('C6Alias').AsString +
                 '","custom8": "' + qGetWSUpdateData.FieldByName('C8Alias').AsString +
                 '","custom23": "' + qGetWSUpdateData.FieldByName('F_CDate3').AsString +

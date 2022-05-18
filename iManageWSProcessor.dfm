@@ -41,13 +41,14 @@ object fiManWSProcessor: TfiManWSProcessor
     TabOrder = 2
     OnClick = bCreateMatterWSClick
   end
-  object Button1: TButton
+  object bRunWSUpdates: TButton
     Left = 536
     Top = 232
     Width = 75
     Height = 25
     Caption = 'Run Updates'
     TabOrder = 3
+    OnClick = bRunWSUpdatesClick
   end
   object iManageSQLServer: TSQLServerUniProvider
     Left = 256
