@@ -1,7 +1,4 @@
-﻿[iManageTargetDB]
-Coordinates=288,331,119,36
-
-[qNewWSClients]
+﻿[qNewWSClients]
 Coordinates=10,364,107,58
 
 [iManageSQLServer]
@@ -14,7 +11,7 @@ Coordinates=140,437,120,36
 Coordinates=196,364,110,58
 
 []
-Coordinates=550,190,88,51
+Coordinates=288,331,119,36
 Visible=False
 
 [BindingsList1]

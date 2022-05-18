@@ -15,7 +15,7 @@ object fiManWSProcessor: TfiManWSProcessor
   PixelsPerInch = 96
   TextHeight = 13
   object bCreateClientWS: TButton
-    Left = 752
+    Left = 536
     Top = 80
     Width = 75
     Height = 25
@@ -24,7 +24,7 @@ object fiManWSProcessor: TfiManWSProcessor
     OnClick = bCreateClientWSClick
   end
   object Button2: TButton
-    Left = 752
+    Left = 536
     Top = 352
     Width = 75
     Height = 25
@@ -33,13 +33,21 @@ object fiManWSProcessor: TfiManWSProcessor
     OnClick = Button2Click
   end
   object bCreateMatterWS: TButton
-    Left = 752
+    Left = 536
     Top = 160
     Width = 75
     Height = 25
     Caption = 'Run Matter'
     TabOrder = 2
     OnClick = bCreateMatterWSClick
+  end
+  object Button1: TButton
+    Left = 536
+    Top = 232
+    Width = 75
+    Height = 25
+    Caption = 'Run Updates'
+    TabOrder = 3
   end
   object iManageSQLServer: TSQLServerUniProvider
     Left = 256
@@ -54,19 +62,6 @@ object fiManWSProcessor: TfiManWSProcessor
     Connected = True
     LoginPrompt = False
     Left = 144
-    Top = 8
-    EncryptedPassword = 
-      '8CFF8BFF90FF8FFF83FFB2FFBEFFA6FFB0FFADFF83FF96FF91FF9BFF96FF9EFF' +
-      '83FFBBFFB6FFADFFBAFFBCFFABFF'
-  end
-  object iManageTargetDB: TUniConnection
-    ProviderName = 'SQL Server'
-    Port = 1433
-    Database = 'WSC'
-    Username = 'sa'
-    Server = 'EUIMANSQL01.INCEGD.COM'
-    LoginPrompt = False
-    Left = 384
     Top = 8
     EncryptedPassword = 
       '8CFF8BFF90FF8FFF83FFB2FFBEFFA6FFB0FFADFF83FF96FF91FF9BFF96FF9EFF' +
@@ -114,7 +109,6 @@ object fiManWSProcessor: TfiManWSProcessor
     AcceptCharset = 'UTF-8, *;q=0.8'
     AcceptEncoding = 'gzip, deflate, br'
     BaseURL = 'https://imancontrol.incegd.com/'
-    ContentType = 'application/json'
     Params = <>
     HandleRedirects = True
     RaiseExceptionOn500 = False
@@ -519,5 +513,73 @@ object fiManWSProcessor: TfiManWSProcessor
       'and Category = '#39'CLIENT'#39)
     Left = 152
     Top = 328
+  end
+  object rRequestWSUpdate: TRESTRequest
+    Accept = '*/*'
+    AcceptEncoding = 'gzip, deflate, br'
+    Client = RESTClient3
+    Method = rmPATCH
+    Params = <>
+    Response = rResponseWSUpdate
+    SynchronizedEvents = False
+    Left = 696
+    Top = 224
+  end
+  object rResponseWSUpdate: TRESTResponse
+    ContentType = 'text/html'
+    RootElement = 'data'
+    Left = 800
+    Top = 224
+  end
+  object qUpdateWSMetaData: TUniQuery
+    Connection = iManageSQLConn
+    SQL.Strings = (
+      '--select * from WSC.dbo.el_vw_Updat')
+    Left = 712
+    Top = 88
+  end
+  object qGetWSUpdateData: TUniQuery
+    Connection = iManageSQLConn
+    SQL.Strings = (
+      '--select * from WSC.dbo.el_vw_Updat')
+    Left = 720
+    Top = 24
+  end
+  object qUpdateQueue: TUniQuery
+    Connection = iManageSQLConn
+    SQL.Strings = (
+      'Update EL_Update_Queue'
+      'Set IsProcessed = :Processed, DateProcessed = GetDate()'
+      'Where RefNo = :RefNo')
+    Left = 848
+    Top = 24
+    ParamData = <
+      item
+        DataType = ftUnknown
+        Name = 'Processed'
+        Value = nil
+      end
+      item
+        DataType = ftUnknown
+        Name = 'RefNo'
+        Value = nil
+      end>
+  end
+  object rRequestGetFolderID: TRESTRequest
+    Accept = '*/*'
+    AcceptEncoding = 'gzip, deflate, br'
+    Client = RESTClient3
+    Method = rmPOST
+    Params = <>
+    Response = rResponseGetFolderID
+    SynchronizedEvents = False
+    Left = 888
+    Top = 112
+  end
+  object rResponseGetFolderID: TRESTResponse
+    ContentType = 'application/json'
+    RootElement = 'data'
+    Left = 896
+    Top = 176
   end
 end
