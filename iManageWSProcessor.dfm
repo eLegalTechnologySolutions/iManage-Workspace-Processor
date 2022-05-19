@@ -60,7 +60,6 @@ object fiManWSProcessor: TfiManWSProcessor
     Database = 'WSC'
     Username = 'sa'
     Server = 'EUIMANSQL01.INCEGD.COM'
-    Connected = True
     LoginPrompt = False
     Left = 144
     Top = 8
@@ -110,6 +109,7 @@ object fiManWSProcessor: TfiManWSProcessor
     AcceptCharset = 'UTF-8, *;q=0.8'
     AcceptEncoding = 'gzip, deflate, br'
     BaseURL = 'https://imancontrol.incegd.com/'
+    ContentType = 'application/json'
     Params = <>
     HandleRedirects = True
     RaiseExceptionOn500 = False
@@ -351,19 +351,21 @@ object fiManWSProcessor: TfiManWSProcessor
     Accept = '*/*'
     AcceptEncoding = 'gzip, deflate, br'
     Client = RESTClient3
-    Method = rmPOST
+    Method = rmPATCH
     Params = <
       item
         Kind = pkREQUESTBODY
         name = 'body'
         Value = 
-          '{"author": "wsadmin","class": "WEBDOC","default_security": "priv' +
-          'ate","description": "001.41469-5 - Santander Facility '#8211' Terrafir' +
-          'ma '#8211' Refinancing","name": "001.41469-5 - Santander Facility '#8211' Te' +
-          'rrafirma '#8211' Refinancing","owner": "wsadmin"}'
+          '{"name": "001.FAV3-1 - Lorraine - Zim late redelivery","descript' +
+          'ion": "001.FAV3-1 - Lorraine - Zim late redelivery","custom1": "' +
+          '69890","custom3": "12","custom6": "8700","custom8": "O","custom2' +
+          '3": "2022-03-23","custom24": "","custom25": "false"}'
         ContentType = ctAPPLICATION_JSON
       end>
-    Resource = 'work/api/v2/customers/100/libraries/eu_gdg_open/workspaces'
+    Resource = 
+      'work/api/v2/customers/100/libraries/EU_GDG_OPEN/workspaces/EU_GD' +
+      'G_OPEN!969010'
     Response = RESTResponse1test
     SynchronizedEvents = False
     Left = 352

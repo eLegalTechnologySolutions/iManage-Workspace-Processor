@@ -1141,6 +1141,40 @@ End;
 Procedure TfiManWSProcessor.UpdateWSMetaData();
 Begin
   try
+  //Insert missing clients to CUSTOM1
+    with qGetWSUpdateData do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select distinct s.dbid ' +
+                  'from Staging s ' +
+                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' ';
+      Open;
+      First;
+      while not EOF do
+      begin
+        qUpdateWSMetaData.Close;
+        qUpdateWSMetaData.SQL.Clear;
+        qUpdateWSMetaData.SQL.Text := 'Insert Into ' + qGetWSUpdateData.FieldByName('DBID').AsString + '.MHGROUP.CUSTOM1 ' +
+                                      '(CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
+                                      'Select Distinct s.C1Alias, s.C1Desc, ''Y'', GETDATE(), ''N'' ' +
+                                      'From Staging s ' +
+                                      'Inner Join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' ' +
+                                      'Left Join ' + qGetWSUpdateData.FieldByName('DBID').AsString + '.MHGROUP.custom1 c1 ' +
+                                      'On c1.CUSTOM_ALIAS = s.C1Alias ' +
+                                      'Where c1.CUSTOM_ALIAS Is Null ' +
+                                      'And uq.DBID = ' + QuotedStr(qGetWSUpdateData.FieldByName('DBID').AsString);
+        qUpdateWSMetaData.Execute;
+        Next;
+      end;
+      qUpdateWSMetaData.Close;
+      Close;
+    end;
+
+  except on E: Exception do
+  end;
+
+  try
   //Update Client Name
     with qGetWSUpdateData do
     begin
@@ -1148,7 +1182,8 @@ Begin
       SQL.Clear;
       SQL.Text := 'select distinct s.C1Alias, s.C1Desc, s.dbid ' +
                   'from Staging s ' +
-                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' and uq.processcode = 11 ';
+                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' ' +
+                    'and SUBSTRING(CAST(UQ.PROCESSCODE AS VARCHAR),3,2) = ''11'' ';
       Open;
       First;
       while not EOF do
@@ -1168,6 +1203,8 @@ Begin
   except on E: Exception do
   end;
 
+  // Need to insert new custom2 record if it doesn't exist
+
   try
   //Update Matter Name and Description
     with qGetWSUpdateData do
@@ -1176,7 +1213,7 @@ Begin
       SQL.Clear;
       SQL.Text := 'select distinct s.C2Alias, s.C2Desc, s.dbid ' +
                   'from Staging s ' +
-                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' and uq.processcode = 12 ';
+                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' and SUBSTRING(CAST(UQ.PROCESSCODE AS VARCHAR),5,2) = ''12'' ';
       Open;
       First;
       while not EOF do
@@ -1232,7 +1269,7 @@ Begin
       SQL.Clear;
       SQL.Text := 'select distinct s.C3Alias, s.C3Desc, s.dbid ' +
                   'from Staging s ' +
-                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' and uq.processcode = 13 ';
+                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' and SUBSTRING(CAST(UQ.PROCESSCODE AS VARCHAR),7,2) = ''13'' ';
       Open;
       First;
       while not EOF do
@@ -1337,7 +1374,7 @@ Begin
               '{"name": "' + rWSName +
               '","description": "' + rWSDescription +
                fCustom1 +
-              //'","custom2": "' + qGetWSUpdateData.FieldByName('C2Alias').AsString +
+              '","custom2": "' + qGetWSUpdateData.FieldByName('C2Alias').AsString +
               '","custom3": "' + qGetWSUpdateData.FieldByName('C3Alias').AsString +
 //              '","custom5": "' + qGetWSUpdateData.FieldByName('C5Alias').AsString +
               '","custom6": "' + qGetWSUpdateData.FieldByName('C6Alias').AsString +
