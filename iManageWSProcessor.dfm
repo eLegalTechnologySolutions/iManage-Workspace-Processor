@@ -357,15 +357,16 @@ object fiManWSProcessor: TfiManWSProcessor
         Kind = pkREQUESTBODY
         name = 'body'
         Value = 
-          '{"name": "001.FAV3-1 - Lorraine - Zim late redelivery","descript' +
-          'ion": "001.FAV3-1 - Lorraine - Zim late redelivery","custom1": "' +
-          '69890","custom3": "12","custom6": "8700","custom8": "O","custom2' +
-          '3": "2022-03-23","custom24": "","custom25": "false"}'
+          '{"name": "012.GAA1-1 - Registered Office and Members Service Add' +
+          'ress","description": "012.GAA1-1 - Registered Office and Members' +
+          ' Service Address","custom1": "012.GAA1","custom2": "012.GAA1-1",' +
+          '"custom3": "2","custom6": "","custom8": "O","custom23": "2022-04' +
+          '-26","custom24": "","custom25": "false"}'
         ContentType = ctAPPLICATION_JSON
       end>
     Resource = 
       'work/api/v2/customers/100/libraries/EU_GDG_OPEN/workspaces/EU_GD' +
-      'G_OPEN!969010'
+      'G_OPEN!971565'
     Response = RESTResponse1test
     SynchronizedEvents = False
     Left = 352

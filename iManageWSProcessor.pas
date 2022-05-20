@@ -621,7 +621,7 @@ End;
 
 procedure TfiManWSProcessor.FormShow(Sender: TObject);
 begin
-{
+
   try
     CreateClient;
   except on E: Exception do
@@ -632,8 +632,14 @@ begin
   except on E: Exception do
   end;
 
+
+  try
+  UpdateWSMetaData;
+  except on E: Exception do
+  end;
+
   Close;
-}
+
 end;
 
 Function TfiManWSProcessor.test():boolean;
@@ -1148,7 +1154,8 @@ Begin
       SQL.Clear;
       SQL.Text := 'select distinct s.dbid ' +
                   'from Staging s ' +
-                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' ';
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                  'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' ;
       Open;
       First;
       while not EOF do
@@ -1163,6 +1170,7 @@ Begin
                                       'Left Join ' + qGetWSUpdateData.FieldByName('DBID').AsString + '.MHGROUP.custom1 c1 ' +
                                       'On c1.CUSTOM_ALIAS = s.C1Alias ' +
                                       'Where c1.CUSTOM_ALIAS Is Null ' +
+                                      'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' +
                                       'And uq.DBID = ' + QuotedStr(qGetWSUpdateData.FieldByName('DBID').AsString);
         qUpdateWSMetaData.Execute;
         Next;
@@ -1182,7 +1190,8 @@ Begin
       SQL.Clear;
       SQL.Text := 'select distinct s.C1Alias, s.C1Desc, s.dbid ' +
                   'from Staging s ' +
-                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' ' +
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                  'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' +
                     'and SUBSTRING(CAST(UQ.PROCESSCODE AS VARCHAR),3,2) = ''11'' ';
       Open;
       First;
@@ -1203,7 +1212,43 @@ Begin
   except on E: Exception do
   end;
 
-  // Need to insert new custom2 record if it doesn't exist
+  try
+  //Insert missing matters with their clients to CUSTOM2 - when a matter has moved clients
+    with qGetWSUpdateData do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select distinct s.dbid ' +
+                  'from Staging s ' +
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                    'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' ;
+      Open;
+      First;
+      while not EOF do
+      begin
+        qUpdateWSMetaData.Close;
+        qUpdateWSMetaData.SQL.Clear;
+        qUpdateWSMetaData.SQL.Text := 'Insert Into ' + qGetWSUpdateData.FieldByName('DBID').AsString + '.MHGROUP.CUSTOM2 ' +
+                                      '(CPARENT_ALIAS, CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
+                                      'Select Distinct s.C1Alias, s.C2Alias, s.C2Desc, ''Y'', GETDATE(), ''N'' ' +
+                                      'From Staging s ' +
+                                      'Inner Join el_update_queue uq on uq.wsid = s.wsid ' +
+                                      'And uq.ignore = ''N'' And uq.isprocessed = ''N'' ' +
+                                      'Left Join ' + qGetWSUpdateData.FieldByName('DBID').AsString + '.MHGROUP.custom2 c2 ' +
+                                      //'On c2.CUSTOM_ALIAS = s.C1Alias And c2.CPARENT_ALIAS = s.C1Alias ' +
+                                      'On c2.CPARENT_ALIAS = s.C1Alias And c2.CUSTOM_ALIAS = s.C2Alias ' +
+                                      'Where c2.CUSTOM_ALIAS Is Null ' +
+                                      'And s.C2Alias is not null ' +
+                                      'And uq.DBID = ' + QuotedStr(qGetWSUpdateData.FieldByName('DBID').AsString) + ' ';                                       ;
+        qUpdateWSMetaData.Execute;
+        Next;
+      end;
+      qUpdateWSMetaData.Close;
+      Close;
+    end;
+
+  except on E: Exception do
+  end;
 
   try
   //Update Matter Name and Description
@@ -1213,7 +1258,9 @@ Begin
       SQL.Clear;
       SQL.Text := 'select distinct s.C2Alias, s.C2Desc, s.dbid ' +
                   'from Staging s ' +
-                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' and SUBSTRING(CAST(UQ.PROCESSCODE AS VARCHAR),5,2) = ''12'' ';
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                    'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' +
+                    'and SUBSTRING(CAST(UQ.PROCESSCODE AS VARCHAR),5,2) = ''12'' ';
       Open;
       First;
       while not EOF do
@@ -1232,44 +1279,18 @@ Begin
 
   except on E: Exception do
   end;
-{
-  try
-  //Update Department Description
-    with qGetWSUpdateData do
-    begin
-      Close;
-      SQL.Clear;
-      SQL.Text := 'select distinct s.C3Alias, s.C3Desc, s.dbid ' +
-                  'from Staging s ' +
-                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' and uq.processcode = 13 ';
-      Open;
-      First;
-      while not EOF do
-      begin
-        qUpdateWSMetaData.Close;
-        qUpdateWSMetaData.SQL.Clear;
-        qUpdateWSMetaData.SQL.Text := 'Update ' + FieldByName('DBID').AsString + '.MHGROUP.Custom3 ' +
-                                      'Set C_DESCRIPT = ' + QuotedStr(FieldByName('C3Desc').AsString) +
-                                      ' Where CUSTOM_ALIAS = ' + QuotedStr(FieldByName('C3Alias').AsString);
-        qUpdateWSMetaData.Execute;
-        Next;
-      end;
-      qUpdateWSMetaData.Close;
-      Close;
-    end;
 
-  except on E: Exception do
-  end;
-}
   try
-  //Insert New Department(s)
+  //Update or Insert New Department(s)
     with qGetWSUpdateData do
     begin
       Close;
       SQL.Clear;
       SQL.Text := 'select distinct s.C3Alias, s.C3Desc, s.dbid ' +
                   'from Staging s ' +
-                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' and SUBSTRING(CAST(UQ.PROCESSCODE AS VARCHAR),7,2) = ''13'' ';
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                    'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' +
+                    'and SUBSTRING(CAST(UQ.PROCESSCODE AS VARCHAR),7,2) = ''13'' ';
       Open;
       First;
       while not EOF do
@@ -1277,14 +1298,6 @@ Begin
         qUpdateWSMetaData.Close;
         qUpdateWSMetaData.SQL.Clear;
         qUpdateWSMetaData.SQL.Text :=
-{        'Insert Into ' + FieldByName('DBID').AsString + '.MHGROUP.Custom3 ' +
-                                      '(CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
-	                                    'Values (' + QuotedStr(FieldByName('C3Alias').AsString) +
-                                      ', ' + QuotedStr(FieldByName('C3Desc').AsString) +
-                                      ', ''Y'', GETDATE(), ''N'') ' +
-                                      'Where NOT EXISTS (Select * from ' + FieldByName('DBID').AsString + '.MHGROUP.Custom3 ' +
-                                        'where CUSTOM_ALIAS = ' + QuotedStr(FieldByName('C3Alias').AsString);
- }
                                         'Merge Into ' + FieldByName('DBID').AsString + '.mhgroup.custom3 as c3 ' +
                                         'Using (select ' + QuotedStr(FieldByName('C3Alias').AsString) + ' as ALIAS) as NewC ' +
                                         'On c3.custom_alias = NewC.Alias ' +
@@ -1314,7 +1327,8 @@ Begin
                   'convert(varchar, CDate3, 23) as F_CDate3, ' +
                   'convert(varchar, CDate4, 23) as F_CDate4 ' +
                   'from Staging s ' +
-                  'inner join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' and uq.ignore = ''N'' ';
+                  'inner join el_update_queue uq on uq.wsid = s.wsid '+
+                    'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ';
       Open;
       First;
       rRequestLogin.Execute;
@@ -1360,7 +1374,10 @@ Begin
 
     fCustom1 := '';
     if qGetWSUpdateData.FieldByName('Category').AsString = 'MATTER' then
-      fCustom1 := '","custom1": "' +  qGetWSUpdateData.FieldByName('C1Alias').AsString
+    begin
+      fCustom1 := '","custom1": "' +  qGetWSUpdateData.FieldByName('C1Alias').AsString +
+                  '","custom2": "' + qGetWSUpdateData.FieldByName('C2Alias').AsString;
+    end
     else
       fCustom1 := '';
 
@@ -1374,7 +1391,6 @@ Begin
               '{"name": "' + rWSName +
               '","description": "' + rWSDescription +
                fCustom1 +
-              '","custom2": "' + qGetWSUpdateData.FieldByName('C2Alias').AsString +
               '","custom3": "' + qGetWSUpdateData.FieldByName('C3Alias').AsString +
 //              '","custom5": "' + qGetWSUpdateData.FieldByName('C5Alias').AsString +
               '","custom6": "' + qGetWSUpdateData.FieldByName('C6Alias').AsString +
@@ -1434,10 +1450,7 @@ Begin
     begin
       //Get FolderID
       FolderJSONArray := rResponseGetFolderID.JSONValue as TJSONArray;
-      //FolderIDArray := FolderJSONArray.Get('id').
-      //FolderID := FolderJSONArray.GetValue('id').Value;
       FolderID := ((FolderJSONArray as TJSONArray).Items[0] as TJSonObject).Get('id').JSONValue.Value;
-      //FolderID := FolderJSONArray.GetValue('id')
 
       //Update Folder metadata
       rRequestWSUpdate.Resource  := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/' + FolderID;
@@ -1445,7 +1458,10 @@ Begin
       rRequestWSUpdate.Params.Clear;
 
       if qGetWSUpdateData.FieldByName('Category').AsString = 'MATTER' then
-        rCustom1 := '"custom1": "' +  qGetWSUpdateData.FieldByName('C1Alias').AsString + '",'
+      begin
+        rCustom1 := '"custom1": "' +  qGetWSUpdateData.FieldByName('C1Alias').AsString +
+                    '","custom2": "' + qGetWSUpdateData.FieldByName('C2Alias').AsString + '",';
+      end
       else
         rCustom1 := '';
 
