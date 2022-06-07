@@ -189,7 +189,6 @@ Function TfiManWSProcessor.CheckWSExists(fWSID : string; fDB : string):boolean;
 Begin
   Result := False;
   try
-  ;
     With qCheckWSExists do
     begin
       Close;
@@ -368,6 +367,7 @@ Begin
 
     rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
     rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,chr(9),'',[rfReplaceAll]);
 
     rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
@@ -1106,7 +1106,7 @@ Begin
     else
       rProspective := 'false';
     rRequestUpdate.Params.Clear;
-    rRequestUpdate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces/' + CurrentWSID;
+    rRequestUpdate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces/{CurrentWSID}'; //+ CurrentWSID;
     rBody := '{"custom1": "' +  qNewWSMatters.FieldByName('C1Alias').AsString +
               '","custom2": "' + qNewWSMatters.FieldByName('C2Alias').AsString +
               '","custom3": "' + qNewWSMatters.FieldByName('C3Alias').AsString +
@@ -1120,7 +1120,7 @@ Begin
               '","project_custom2": "' + qNewWSMatters.FieldByName('TemplateId').AsString +
               '","project_custom3": "Worksite"}';
 
-
+    rRequestUpdate.Params.AddItem('CurrentWSID', CurrentWSID, TRESTRequestPArameterKind.pkURLSEGMENT);
     rRequestUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestUpdate.Execute;
@@ -1314,9 +1314,46 @@ Begin
       Close;
     end;
 
+
   except on E: Exception do
   end;
 
+  try
+    //Insert new Custom6 Previous ID values
+    with qGetWSUpdateData do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select distinct s.dbid ' +
+                  'from Staging s ' +
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                  'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ';
+      Open;
+      First;
+      while not EOF do
+      begin
+        qUpdateWSMetaData.Close;
+        qUpdateWSMetaData.SQL.Clear;
+        qUpdateWSMetaData.SQL.Text :=   'Merge Into ' + FieldByName('DBID').AsString + '.mhgroup.custom6 as c6 ' +
+                                        'Using (select distinct s.C6Alias as ALIAS ' +
+                                        'from Staging s ' +
+                                        'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                                        'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' +
+                                        //'and s.C6Alias NOT IN (SELECT CUSTOM_ALIAS FROM ' + FieldByName('DBID').AsString + '.MHGROUP.CUSTOM6) ' +
+                                        'and s.dbid = ' + QuotedStr(FieldByName('DBID').AsString) + ') as NewC ' +
+                                        'On c6.custom_alias = NewC.Alias ' +
+                                        'When Not Matched Then ' +
+	                                      'Insert (CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
+	                                      'Values ( NewC.Alias, NULL, ''Y'', GETDATE(), ''N'');';
+        qUpdateWSMetaData.Execute;
+        Next;
+      end;
+      qUpdateWSMetaData.Close;
+      Close;
+    end;
+
+  except on E: Exception do
+  end;
   try
   //Get workspaces and data to update
     with qGetWSUpdateData do
@@ -1386,7 +1423,7 @@ Begin
 
 
     rRequestWSUpdate.Params.Clear;
-    rRequestWSUpdate.Resource := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/workspaces/' + fWSID;
+    rRequestWSUpdate.Resource := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/workspaces/' + fWSID; //{fWSID}'; //+ fWSID;
     rBody := //'{"custom1": "' +  qGetWSUpdateData.FieldByName('C1Alias').AsString +
               '{"name": "' + rWSName +
               '","description": "' + rWSDescription +
@@ -1397,12 +1434,14 @@ Begin
               '","custom8": "' + qGetWSUpdateData.FieldByName('C8Alias').AsString +
               '","custom23": "' + qGetWSUpdateData.FieldByName('F_CDate3').AsString +
               '","custom24": "' + qGetWSUpdateData.FieldByName('F_CDate4').AsString +
-              '","custom25": "' + rProspective  + '"}';
+              '","custom25": ' + rProspective  + '}';
 
     rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
     rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,chr(9),'',[rfReplaceAll]);
 
-    rRequestWSUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY);
+    //rRequestWSUpdate.Params.AddItem('fWSID', fWSID, TRESTRequestParameterKind.pkURLSEGMENT);
+    rRequestWSUpdate.Params.AddItem('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
     rRequestWSUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestWSUpdate.Execute;
     if rResponseWSUpdate.StatusCode = 200 then
@@ -1453,7 +1492,7 @@ Begin
       FolderID := ((FolderJSONArray as TJSONArray).Items[0] as TJSonObject).Get('id').JSONValue.Value;
 
       //Update Folder metadata
-      rRequestWSUpdate.Resource  := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/' + FolderID;
+      rRequestWSUpdate.Resource  := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/{FolderID}'; //+ FolderID;
       rResponseWSUpdate.Content.Empty;
       rRequestWSUpdate.Params.Clear;
 
@@ -1474,7 +1513,9 @@ Begin
 
       rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
       rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+      rBody := StringReplace(rBody,chr(9),'',[rfReplaceAll]);
 
+      rRequestWSUpdate.Params.AddItem('FolderID', FolderID, TRESTRequestPArameterKind.pkURLSEGMENT);
       rRequestWSUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY);
       rRequestWSUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
       rRequestWSUpdate.Execute;
