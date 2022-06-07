@@ -17,7 +17,6 @@ type
   TfiManWSProcessor = class(TForm)
     iManageSQLServer: TSQLServerUniProvider;
     iManageSQLConn: TUniConnection;
-    iManageTargetDB: TUniConnection;
     qNewWSClients: TUniQuery;
     qNewWSMatters: TUniQuery;
     bCreateClientWS: TButton;
@@ -49,10 +48,19 @@ type
     qWriteLog: TUniQuery;
     bCreateMatterWS: TButton;
     qCheckPrevRef: TUniQuery;
+    rRequestWSUpdate: TRESTRequest;
+    rResponseWSUpdate: TRESTResponse;
+    bRunWSUpdates: TButton;
+    qUpdateWSMetaData: TUniQuery;
+    qGetWSUpdateData: TUniQuery;
+    qUpdateQueue: TUniQuery;
+    rRequestGetFolderID: TRESTRequest;
+    rResponseGetFolderID: TRESTResponse;
     procedure bCreateClientWSClick(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure bCreateMatterWSClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure bRunWSUpdatesClick(Sender: TObject);
   private
     { Private declarations }
     CurrentWSID: string;
@@ -82,6 +90,11 @@ type
     Function CheckDept(fDept : string; fDB : string):boolean;
     Function UpdateMatterWS():boolean;
     Function CheckPrevRef(fPrevRef : string; fDB : string):boolean;
+    Procedure UpdateWSMetaData();
+    Function UpdateWSData():boolean;
+    Function UpdateWSRootFolderData(fFolderName : string):boolean;
+    Procedure UpdateWSUpdateQueue(fRefNo : Integer; fProcessed : string);
+
 //    function testfoldercreate():boolean;
   public
     { Public declarations }
@@ -208,6 +221,11 @@ End;
 procedure TfiManWSProcessor.bCreateMatterWSClick(Sender: TObject);
 begin
   CreateMatter;
+end;
+
+procedure TfiManWSProcessor.bRunWSUpdatesClick(Sender: TObject);
+begin
+  UpdateWSMetaData;
 end;
 
 procedure TfiManWSProcessor.Button2Click(Sender: TObject);
@@ -603,6 +621,7 @@ End;
 
 procedure TfiManWSProcessor.FormShow(Sender: TObject);
 begin
+
   try
     CreateClient;
   except on E: Exception do
@@ -613,7 +632,14 @@ begin
   except on E: Exception do
   end;
 
+
+  try
+  UpdateWSMetaData;
+  except on E: Exception do
+  end;
+
   Close;
+
 end;
 
 Function TfiManWSProcessor.test():boolean;
@@ -1118,5 +1144,359 @@ Begin
   end;
 End;
 
+Procedure TfiManWSProcessor.UpdateWSMetaData();
+Begin
+  try
+  //Insert missing clients to CUSTOM1
+    with qGetWSUpdateData do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select distinct s.dbid ' +
+                  'from Staging s ' +
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                  'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' ;
+      Open;
+      First;
+      while not EOF do
+      begin
+        qUpdateWSMetaData.Close;
+        qUpdateWSMetaData.SQL.Clear;
+        qUpdateWSMetaData.SQL.Text := 'Insert Into ' + qGetWSUpdateData.FieldByName('DBID').AsString + '.MHGROUP.CUSTOM1 ' +
+                                      '(CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
+                                      'Select Distinct s.C1Alias, s.C1Desc, ''Y'', GETDATE(), ''N'' ' +
+                                      'From Staging s ' +
+                                      'Inner Join el_update_queue uq on uq.wsid = s.wsid and uq.isprocessed = ''N'' ' +
+                                      'Left Join ' + qGetWSUpdateData.FieldByName('DBID').AsString + '.MHGROUP.custom1 c1 ' +
+                                      'On c1.CUSTOM_ALIAS = s.C1Alias ' +
+                                      'Where c1.CUSTOM_ALIAS Is Null ' +
+                                      'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' +
+                                      'And uq.DBID = ' + QuotedStr(qGetWSUpdateData.FieldByName('DBID').AsString);
+        qUpdateWSMetaData.Execute;
+        Next;
+      end;
+      qUpdateWSMetaData.Close;
+      Close;
+    end;
+
+  except on E: Exception do
+  end;
+
+  try
+  //Update Client Name
+    with qGetWSUpdateData do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select distinct s.C1Alias, s.C1Desc, s.dbid ' +
+                  'from Staging s ' +
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                  'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' +
+                    'and SUBSTRING(CAST(UQ.PROCESSCODE AS VARCHAR),3,2) = ''11'' ';
+      Open;
+      First;
+      while not EOF do
+      begin
+        qUpdateWSMetaData.Close;
+        qUpdateWSMetaData.SQL.Clear;
+        qUpdateWSMetaData.SQL.Text := 'Update ' + FieldByName('DBID').AsString + '.MHGROUP.Custom1 ' +
+                                      'Set C_DESCRIPT = ' + QuotedStr(FieldByName('C1Desc').AsString) +
+                                      ' Where CUSTOM_ALIAS = ' + QuotedStr(FieldByName('C1Alias').AsString);
+        qUpdateWSMetaData.Execute;
+        Next;
+      end;
+      qUpdateWSMetaData.Close;
+      Close;
+    end;
+
+  except on E: Exception do
+  end;
+
+  try
+  //Insert missing matters with their clients to CUSTOM2 - when a matter has moved clients
+    with qGetWSUpdateData do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select distinct s.dbid ' +
+                  'from Staging s ' +
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                    'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' ;
+      Open;
+      First;
+      while not EOF do
+      begin
+        qUpdateWSMetaData.Close;
+        qUpdateWSMetaData.SQL.Clear;
+        qUpdateWSMetaData.SQL.Text := 'Insert Into ' + qGetWSUpdateData.FieldByName('DBID').AsString + '.MHGROUP.CUSTOM2 ' +
+                                      '(CPARENT_ALIAS, CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
+                                      'Select Distinct s.C1Alias, s.C2Alias, s.C2Desc, ''Y'', GETDATE(), ''N'' ' +
+                                      'From Staging s ' +
+                                      'Inner Join el_update_queue uq on uq.wsid = s.wsid ' +
+                                      'And uq.ignore = ''N'' And uq.isprocessed = ''N'' ' +
+                                      'Left Join ' + qGetWSUpdateData.FieldByName('DBID').AsString + '.MHGROUP.custom2 c2 ' +
+                                      //'On c2.CUSTOM_ALIAS = s.C1Alias And c2.CPARENT_ALIAS = s.C1Alias ' +
+                                      'On c2.CPARENT_ALIAS = s.C1Alias And c2.CUSTOM_ALIAS = s.C2Alias ' +
+                                      'Where c2.CUSTOM_ALIAS Is Null ' +
+                                      'And s.C2Alias is not null ' +
+                                      'And uq.DBID = ' + QuotedStr(qGetWSUpdateData.FieldByName('DBID').AsString) + ' ';                                       ;
+        qUpdateWSMetaData.Execute;
+        Next;
+      end;
+      qUpdateWSMetaData.Close;
+      Close;
+    end;
+
+  except on E: Exception do
+  end;
+
+  try
+  //Update Matter Name and Description
+    with qGetWSUpdateData do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select distinct s.C2Alias, s.C2Desc, s.dbid ' +
+                  'from Staging s ' +
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                    'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' +
+                    'and SUBSTRING(CAST(UQ.PROCESSCODE AS VARCHAR),5,2) = ''12'' ';
+      Open;
+      First;
+      while not EOF do
+      begin
+        qUpdateWSMetaData.Close;
+        qUpdateWSMetaData.SQL.Clear;
+        qUpdateWSMetaData.SQL.Text := 'Update ' + FieldByName('DBID').AsString + '.MHGROUP.Custom2 ' +
+                                      'Set C_DESCRIPT = ' + QuotedStr(FieldByName('C2Desc').AsString) +
+                                      ' Where CUSTOM_ALIAS = ' + QuotedStr(FieldByName('C2Alias').AsString);
+        qUpdateWSMetaData.Execute;
+        Next;
+      end;
+      qUpdateWSMetaData.Close;
+      Close;
+    end;
+
+  except on E: Exception do
+  end;
+
+  try
+  //Update or Insert New Department(s)
+    with qGetWSUpdateData do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select distinct s.C3Alias, s.C3Desc, s.dbid ' +
+                  'from Staging s ' +
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                    'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' +
+                    'and SUBSTRING(CAST(UQ.PROCESSCODE AS VARCHAR),7,2) = ''13'' ';
+      Open;
+      First;
+      while not EOF do
+      begin
+        qUpdateWSMetaData.Close;
+        qUpdateWSMetaData.SQL.Clear;
+        qUpdateWSMetaData.SQL.Text :=
+                                        'Merge Into ' + FieldByName('DBID').AsString + '.mhgroup.custom3 as c3 ' +
+                                        'Using (select ' + QuotedStr(FieldByName('C3Alias').AsString) + ' as ALIAS) as NewC ' +
+                                        'On c3.custom_alias = NewC.Alias ' +
+                                        'When Matched Then ' +
+                                        'Update Set C_DESCRIPT = ' + QuotedStr(FieldByName('C3Desc').AsString) +
+                                        'When Not Matched Then ' +
+	                                      'Insert (CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
+	                                      'Values ( ' + QuotedStr(FieldByName('C3Alias').AsString) + ', ' +
+                                         QuotedStr(FieldByName('C3Desc').AsString) + ', ''Y'', GETDATE(), ''N'');';
+        qUpdateWSMetaData.Execute;
+        Next;
+      end;
+      qUpdateWSMetaData.Close;
+      Close;
+    end;
+
+  except on E: Exception do
+  end;
+
+  try
+  //Get workspaces and data to update
+    with qGetWSUpdateData do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select s.*, uq.refno, ' +
+                  'convert(varchar, CDate3, 23) as F_CDate3, ' +
+                  'convert(varchar, CDate4, 23) as F_CDate4 ' +
+                  'from Staging s ' +
+                  'inner join el_update_queue uq on uq.wsid = s.wsid '+
+                    'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ';
+      Open;
+      First;
+      rRequestLogin.Execute;
+      while not EOF do
+      begin
+        If UpdateWSData Then
+        Begin
+          UpdateWSUpdateQueue(qGetWSUpdateData.FieldByName('RefNo').AsInteger, 'Y');
+          UpdateWSRootFolderData('Accounts/Compliance');
+          UpdateWSRootFolderData('Correspondence');
+          UpdateWSRootFolderData('Documents');
+        End
+        Else
+          UpdateWSUpdateQueue(qGetWSUpdateData.FieldByName('RefNo').AsInteger, 'N');
+        Next;
+      end;
+      qUpdateWSMetaData.Close;
+      Close;
+    end;
+
+  except on E: Exception do
+    UpdateWSUpdateQueue(qGetWSUpdateData.FieldByName('RefNo').AsInteger, 'N');
+  end;
+End;
+
+Function TfiManWSProcessor.UpdateWSData():boolean;
+var
+  rBody, rWSID, rFolderID, rProspective: string;
+  fCustom1, fWSID : string;
+  rWSName, rWSDescription : string;
+Begin
+  try
+    Result := False;
+    rResponseUpdate.Content.Empty;
+    //update workspace with extra metadata
+    if qGetWSUpdateData.FieldByName('CBool1').AsBoolean = True then
+    rProspective := 'true'
+    else
+      rProspective := 'false';
+
+    fWSID :=  qGetWSUpdateData.FieldByName('DbId').AsString + '!' +
+              qGetWSUpdateData.FieldByName('FolderID').AsString;
+
+    fCustom1 := '';
+    if qGetWSUpdateData.FieldByName('Category').AsString = 'MATTER' then
+    begin
+      fCustom1 := '","custom1": "' +  qGetWSUpdateData.FieldByName('C1Alias').AsString +
+                  '","custom2": "' + qGetWSUpdateData.FieldByName('C2Alias').AsString;
+    end
+    else
+      fCustom1 := '';
+
+    rWSName := StringReplace(qGetWSUpdateData.FieldByName('Name').AsString,'"','''',[rfReplaceAll]);
+    rWSDescription := StringReplace(qGetWSUpdateData.FieldByName('Description').AsString,'"','''',[rfReplaceAll]);
+
+
+    rRequestWSUpdate.Params.Clear;
+    rRequestWSUpdate.Resource := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/workspaces/' + fWSID;
+    rBody := //'{"custom1": "' +  qGetWSUpdateData.FieldByName('C1Alias').AsString +
+              '{"name": "' + rWSName +
+              '","description": "' + rWSDescription +
+               fCustom1 +
+              '","custom3": "' + qGetWSUpdateData.FieldByName('C3Alias').AsString +
+//              '","custom5": "' + qGetWSUpdateData.FieldByName('C5Alias').AsString +
+              '","custom6": "' + qGetWSUpdateData.FieldByName('C6Alias').AsString +
+              '","custom8": "' + qGetWSUpdateData.FieldByName('C8Alias').AsString +
+              '","custom23": "' + qGetWSUpdateData.FieldByName('F_CDate3').AsString +
+              '","custom24": "' + qGetWSUpdateData.FieldByName('F_CDate4').AsString +
+              '","custom25": "' + rProspective  + '"}';
+
+    rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+
+    rRequestWSUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY);
+    rRequestWSUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
+    rRequestWSUpdate.Execute;
+    if rResponseWSUpdate.StatusCode = 200 then
+    begin
+      result := True;
+    end
+    else
+    begin
+      //record failure
+      result := False;
+    end;
+
+  except on E: Exception do
+    begin
+      result := False;
+    end;
+  end;
+End;
+
+Function TfiManWSProcessor.UpdateWSRootFolderData(fFolderName : string):boolean;
+var
+  rBody, rWSID : string;
+  FolderJSONArray, FolderIDArray : TJsonArray;
+  FolderID, rCustom1 : string;
+Begin
+  try
+    rWSID :=  qGetWSUpdateData.FieldByName('DbId').AsString + '!' +
+                qGetWSUpdateData.FieldByName('FolderID').AsString;
+
+    rResponseGetFolderID.Content.Empty;
+    rRequestGetFolderID.Params.Clear;
+
+    rRequestGetFolderID.Resource := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/search';
+    rBody := '{"filters": {"container_id": "' + rWSID +
+                          '","name": "' + fFolderName + '"}}';
+
+    rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+
+    rRequestGetFolderID.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY);
+    rRequestGetFolderID.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
+
+    rRequestGetFolderID.Execute;
+    if rResponseGetFolderID.StatusCode = 200 then
+    begin
+      //Get FolderID
+      FolderJSONArray := rResponseGetFolderID.JSONValue as TJSONArray;
+      FolderID := ((FolderJSONArray as TJSONArray).Items[0] as TJSonObject).Get('id').JSONValue.Value;
+
+      //Update Folder metadata
+      rRequestWSUpdate.Resource  := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/' + FolderID;
+      rResponseWSUpdate.Content.Empty;
+      rRequestWSUpdate.Params.Clear;
+
+      if qGetWSUpdateData.FieldByName('Category').AsString = 'MATTER' then
+      begin
+        rCustom1 := '"custom1": "' +  qGetWSUpdateData.FieldByName('C1Alias').AsString +
+                    '","custom2": "' + qGetWSUpdateData.FieldByName('C2Alias').AsString + '",';
+      end
+      else
+        rCustom1 := '';
+
+      rBody :=  '{"profile": {' + rCustom1 +
+                '"custom3": "' + qGetWSUpdateData.FieldByName('C3Alias').AsString +
+                '","custom6": "' + qGetWSUpdateData.FieldByName('C6Alias').AsString +
+                '","custom8": "' + qGetWSUpdateData.FieldByName('C8Alias').AsString +
+                '","custom23": "' + qGetWSUpdateData.FieldByName('F_CDate3').AsString +
+                '","custom24": "' + qGetWSUpdateData.FieldByName('F_CDate4').AsString + '"}}';
+
+      rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
+      rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+
+      rRequestWSUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY);
+      rRequestWSUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
+      rRequestWSUpdate.Execute;
+
+    end;
+
+  except on E: Exception do
+  end;
+End;
+
+Procedure TfiManWSProcessor.UpdateWSUpdateQueue(fRefNo : Integer; fProcessed : string);
+Begin
+  try
+    With qUpdateQueue Do
+    begin
+      Close;
+      ParamByName('Refno').AsInteger := fRefNo;
+      ParamByName('Processed').AsString := fProcessed;
+      Execute;
+    end;
+  except on E: Exception do
+  end;
+End;
 
 end.
