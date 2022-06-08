@@ -50,6 +50,15 @@ object fiManWSProcessor: TfiManWSProcessor
     TabOrder = 3
     OnClick = bRunWSUpdatesClick
   end
+  object Button1: TButton
+    Left = 768
+    Top = 304
+    Width = 75
+    Height = 25
+    Caption = 'Fix'
+    TabOrder = 4
+    OnClick = Button1Click
+  end
   object iManageSQLServer: TSQLServerUniProvider
     Left = 256
     Top = 8
@@ -60,6 +69,7 @@ object fiManWSProcessor: TfiManWSProcessor
     Database = 'WSC'
     Username = 'sa'
     Server = 'EUIMANSQL01.INCEGD.COM'
+    Connected = True
     LoginPrompt = False
     Left = 144
     Top = 8
@@ -94,7 +104,8 @@ object fiManWSProcessor: TfiManWSProcessor
       'and C2Alias is not null'
       'and C3Alias is not null'
       'and C5Alias is not null'
-      'and Default_Security_Group is not null')
+      'and Default_Security_Group is not null'
+      '')
     Left = 368
     Top = 96
   end

@@ -56,11 +56,13 @@ type
     qUpdateQueue: TUniQuery;
     rRequestGetFolderID: TRESTRequest;
     rResponseGetFolderID: TRESTResponse;
+    Button1: TButton;
     procedure bCreateClientWSClick(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure bCreateMatterWSClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure bRunWSUpdatesClick(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
     CurrentWSID: string;
@@ -225,6 +227,18 @@ end;
 procedure TfiManWSProcessor.bRunWSUpdatesClick(Sender: TObject);
 begin
   UpdateWSMetaData;
+end;
+
+procedure TfiManWSProcessor.Button1Click(Sender: TObject);
+begin
+  qNewWSMatters.open;
+  CurrentWSID := qNewWSMatters.FieldByName('DBId').AsString + '!' + qNewWSMatters.FieldByName('FolderId').AsString;
+  rRequestLogin.Execute;
+  UpdateMatterWS;
+  SetWSPerms(qNewWSMatters.FieldByName('DBId').AsString, qNewWSMatters.FieldByName('Default_Security_Group').AsString);
+  CreateWSRootFolders(qNewWSMatters.FieldByName('DBId').AsString, 'MATTER');
+  qNewWSMatters.close;
+
 end;
 
 procedure TfiManWSProcessor.Button2Click(Sender: TObject);
@@ -631,7 +645,6 @@ begin
   CreateMatter;  
   except on E: Exception do
   end;
-
 
   try
   UpdateWSMetaData;
@@ -1045,8 +1058,8 @@ Begin
 
     rRequestCreate.Params.Clear;
     //Remove double quotes from name and description
-    rWSName := StringReplace(qNewWSMatters.FieldByName('Name').AsString,'"','''',[rfReplaceAll]);
-    rWSDescription := StringReplace(qNewWSMatters.FieldByName('Description').AsString,'"','''',[rfReplaceAll]);
+    rWSName := StringReplace(qNewWSMatters.FieldByName('Name').AsString,'"','\\"',[rfReplaceAll]);
+    rWSDescription := StringReplace(qNewWSMatters.FieldByName('Description').AsString,'"','\\"',[rfReplaceAll]);
 
     rRequestCreate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces';
     rBody := '{"author": "wsadmin","class": "WEBDOC","default_security": "' +
