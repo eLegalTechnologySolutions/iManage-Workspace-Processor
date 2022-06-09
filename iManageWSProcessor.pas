@@ -57,12 +57,14 @@ type
     rRequestGetFolderID: TRESTRequest;
     rResponseGetFolderID: TRESTResponse;
     Button1: TButton;
+    Button3: TButton;
     procedure bCreateClientWSClick(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure bCreateMatterWSClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure bRunWSUpdatesClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
   private
     { Private declarations }
     CurrentWSID: string;
@@ -234,9 +236,15 @@ begin
   qNewWSMatters.open;
   CurrentWSID := qNewWSMatters.FieldByName('DBId').AsString + '!' + qNewWSMatters.FieldByName('FolderId').AsString;
   rRequestLogin.Execute;
-  UpdateMatterWS;
-  SetWSPerms(qNewWSMatters.FieldByName('DBId').AsString, qNewWSMatters.FieldByName('Default_Security_Group').AsString);
-  CreateWSRootFolders(qNewWSMatters.FieldByName('DBId').AsString, 'MATTER');
+  while not qNewWSMatters.Eof do
+  begin
+    CurrentWSID := qNewWSMatters.FieldByName('DBId').AsString + '!' + qNewWSMatters.FieldByName('FolderId').AsString;
+//  try
+    UpdateMatterWS;
+//  SetWSPerms(qNewWSMatters.FieldByName('DBId').AsString, qNewWSMatters.FieldByName('Default_Security_Group').AsString);
+    CreateWSRootFolders(qNewWSMatters.FieldByName('DBId').AsString, 'MATTER');
+    qNewWSMatters.Next;
+  end;
   qNewWSMatters.close;
 
 end;
@@ -244,6 +252,23 @@ end;
 procedure TfiManWSProcessor.Button2Click(Sender: TObject);
 begin
   test;
+end;
+
+procedure TfiManWSProcessor.Button3Click(Sender: TObject);
+begin
+  rRequestLogin.Execute;
+  qNewWSClients.Open;
+  qNewWSClients.First;
+  while not qNewWSClients.Eof do
+  begin
+//    If CreateClientWS then
+//    begin
+    CurrentWSID := qNewWSClients.FieldByName('DBId').AsString + '!' + qNewWSClients.FieldByName('FolderId').AsString;
+    UpdateClientWS;
+//    SetWSPerms(qNewWSClients.FieldByName('DBId').AsString, qNewWSClients.FieldByName('Default_Security_Group').AsString);
+//    CreateWSRootFolders(qNewWSClients.FieldByName('DBId').AsString, 'CLIENT');
+//    end
+  end;
 end;
 
 Function TfiManWSProcessor.CheckClientID(fClientID : string; fDB : string):boolean;
@@ -369,8 +394,8 @@ Begin
 
     rRequestCreate.Params.Clear;
     //Remove double quotes from name and description
-    rWSName := StringReplace(qNewWSClients.FieldByName('Name').AsString,'"','''',[rfReplaceAll]);
-    rWSDescription := StringReplace(qNewWSClients.FieldByName('Description').AsString,'"','''',[rfReplaceAll]);
+    rWSName := StringReplace(qNewWSClients.FieldByName('Name').AsString,'"','\"',[rfReplaceAll]);
+    rWSDescription := StringReplace(qNewWSClients.FieldByName('Description').AsString,'"','\"',[rfReplaceAll]);
 
     rRequestCreate.Resource := v2APIBase + qNewWSClients.FieldByName('DBId').AsString + '/workspaces';
     rBody := '{"author": "wsadmin","class": "WEBDOC","default_security": "' +
@@ -635,7 +660,7 @@ End;
 
 procedure TfiManWSProcessor.FormShow(Sender: TObject);
 begin
-
+{
   try
     CreateClient;
   except on E: Exception do
@@ -652,7 +677,7 @@ begin
   end;
 
   Close;
-
+ }
 end;
 
 Function TfiManWSProcessor.test():boolean;
@@ -1058,8 +1083,8 @@ Begin
 
     rRequestCreate.Params.Clear;
     //Remove double quotes from name and description
-    rWSName := StringReplace(qNewWSMatters.FieldByName('Name').AsString,'"','\\"',[rfReplaceAll]);
-    rWSDescription := StringReplace(qNewWSMatters.FieldByName('Description').AsString,'"','\\"',[rfReplaceAll]);
+    rWSName := StringReplace(qNewWSMatters.FieldByName('Name').AsString,'"','\"',[rfReplaceAll]);     //JRR 09/06/2022 - Remove double quotes
+    rWSDescription := StringReplace(qNewWSMatters.FieldByName('Description').AsString,'"','\"',[rfReplaceAll]);
 
     rRequestCreate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces';
     rBody := '{"author": "wsadmin","class": "WEBDOC","default_security": "' +
@@ -1431,8 +1456,8 @@ Begin
     else
       fCustom1 := '';
 
-    rWSName := StringReplace(qGetWSUpdateData.FieldByName('Name').AsString,'"','''',[rfReplaceAll]);
-    rWSDescription := StringReplace(qGetWSUpdateData.FieldByName('Description').AsString,'"','''',[rfReplaceAll]);
+    rWSName := StringReplace(qGetWSUpdateData.FieldByName('Name').AsString,'"','\"',[rfReplaceAll]);
+    rWSDescription := StringReplace(qGetWSUpdateData.FieldByName('Description').AsString,'"','\"',[rfReplaceAll]);
 
 
     rRequestWSUpdate.Params.Clear;
