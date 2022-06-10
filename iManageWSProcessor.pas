@@ -511,12 +511,14 @@ Begin
       //record failure
       result := False;
       Log_Permissions := 'Status = ' + IntToStr(rResponseSetWSPerms.StatusCode);
+      Log_Extra_Data := rResponseSetWSPerms.Content;
     end;
 
     except on E: Exception do
       begin
       result := False;
       Log_Permissions := 'Status = ' + IntToStr(rResponseSetWSPerms.StatusCode);
+      Log_Extra_Data := rResponseSetWSPerms.Content;
       end;
   end;
 End;
@@ -581,11 +583,13 @@ Begin
       //record failure
       result := False;
       Log_WSRootFolders := '[Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+      Log_Extra_Data := rResponseCreate.Content;
     end;
   except on E: Exception do
     begin
       result := False;
       Log_WSRootFolders := 'Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+      Log_Extra_Data := rResponseCreate.Content;
     end;
   end;
 
@@ -615,11 +619,13 @@ Begin
         //record failure
         result := False;
         Log_WSRootFolders := '[Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+        Log_Extra_Data := rResponseCreate.Content;
       end;
     except on E: Exception do
       begin
         result := False;
         Log_WSRootFolders := '[Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+        Log_Extra_Data := rResponseCreate.Content;
       end;
     end;
 
@@ -648,19 +654,21 @@ Begin
       //record failure
       result := False;
       Log_WSRootFolders := '[Documents = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+      Log_Extra_Data := Log_Extra_Data + ' || ' + rResponseCreate.Content;
     end;
 
   except on E: Exception do
     begin
       result := False;
       Log_WSRootFolders := '[Documents = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+      Log_Extra_Data := Log_Extra_Data + ' || ' + rResponseCreate.Content;
     end;
   end;
 End;
 
 procedure TfiManWSProcessor.FormShow(Sender: TObject);
 begin
-{
+
   try
     CreateClient;
   except on E: Exception do
@@ -677,7 +685,7 @@ begin
   end;
 
   Close;
- }
+
 end;
 
 Function TfiManWSProcessor.test():boolean;
@@ -1095,6 +1103,7 @@ Begin
 
     rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
     rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,chr(9),'',[rfReplaceAll]);
 
     rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
@@ -1121,12 +1130,14 @@ Begin
       //record failure
       result := False;
       Log_Workspace_ID := 'Response = ' + IntToStr(rResponseCreate.StatusCode);
+      Log_Extra_Data := rResponseCreate.Content;
     end;
 
   except on E: Exception do
     begin
       result := False;
       Log_Workspace_ID := 'Response = ' + IntToStr(rResponseCreate.StatusCode);
+      Log_Extra_Data := rResponseCreate.Content;
     end;
   end;
 End;
@@ -1172,12 +1183,14 @@ Begin
       //record failure
       result := False;
       Log_WS_MetaData := 'Status = ' + IntToStr(rResponseUpdate.StatusCode);
+      Log_Extra_Data := rResponseUpdate.Content;
     end;
 
   except on E: Exception do
     begin
       result := False;
       Log_WS_MetaData := 'Status = ' + IntToStr(rResponseUpdate.StatusCode);
+      Log_Extra_Data := rResponseUpdate.Content;
     end;
   end;
 End;
@@ -1518,6 +1531,7 @@ Begin
 
     rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
     rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,chr(9),'',[rfReplaceAll]);
 
     rRequestGetFolderID.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY);
     rRequestGetFolderID.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
