@@ -50,6 +50,24 @@ object fiManWSProcessor: TfiManWSProcessor
     TabOrder = 3
     OnClick = bRunWSUpdatesClick
   end
+  object Button1: TButton
+    Left = 768
+    Top = 304
+    Width = 75
+    Height = 25
+    Caption = 'Fix Matter'
+    TabOrder = 4
+    OnClick = Button1Click
+  end
+  object Button3: TButton
+    Left = 768
+    Top = 352
+    Width = 75
+    Height = 25
+    Caption = 'Fix Client'
+    TabOrder = 5
+    OnClick = Button3Click
+  end
   object iManageSQLServer: TSQLServerUniProvider
     Left = 256
     Top = 8
@@ -60,6 +78,7 @@ object fiManWSProcessor: TfiManWSProcessor
     Database = 'WSC'
     Username = 'sa'
     Server = 'EUIMANSQL01.INCEGD.COM'
+    Connected = True
     LoginPrompt = False
     Left = 144
     Top = 8
@@ -70,6 +89,7 @@ object fiManWSProcessor: TfiManWSProcessor
   object qNewWSClients: TUniQuery
     Connection = iManageSQLConn
     SQL.Strings = (
+      ''
       'select * '
       'from Staging'
       'where FolderId is null'
@@ -77,7 +97,10 @@ object fiManWSProcessor: TfiManWSProcessor
       'and Wsid is not null'
       'and C1Alias is not null'
       'and C5Alias is not null'
-      'and Default_Security_Group is not null')
+      'and Default_Security_Group is not null'
+      '/*'
+      'select * from staging where wsid = '#39'038.SHA1'#39
+      '*/')
     Left = 64
     Top = 96
   end
@@ -87,14 +110,28 @@ object fiManWSProcessor: TfiManWSProcessor
       'select *,'
       'convert(varchar, CDate3, 23) as F_CDate3 '
       'from Staging'
-      'where FolderId is null'
+      'where '
+      ''
+      'FolderId is null'
       'and Category = '#39'MATTER'#39
       'and Wsid is not null'
       'and C1Alias is not null'
       'and C2Alias is not null'
       'and C3Alias is not null'
       'and C5Alias is not null'
-      'and Default_Security_Group is not null')
+      'and Default_Security_Group is not null'
+      ''
+      '--wsid = '#39'036.29321-3'#39
+      '/*'
+      'wsid in ('
+      
+        'select wsid from EL_WS_Create_Log where createdate > cast(getdat' +
+        'e() as date) and WS_MetaData = '#39'Status = 400'#39' --and left(wsid,3)' +
+        ' = '#39'036'#39
+      'and ws_rootfolders = '#39'[Documents = 400]'#39
+      '--order by CreateDate desc'
+      ')'
+      '*/')
     Left = 368
     Top = 96
   end

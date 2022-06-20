@@ -56,11 +56,15 @@ type
     qUpdateQueue: TUniQuery;
     rRequestGetFolderID: TRESTRequest;
     rResponseGetFolderID: TRESTResponse;
+    Button1: TButton;
+    Button3: TButton;
     procedure bCreateClientWSClick(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure bCreateMatterWSClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure bRunWSUpdatesClick(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
   private
     { Private declarations }
     CurrentWSID: string;
@@ -189,7 +193,6 @@ Function TfiManWSProcessor.CheckWSExists(fWSID : string; fDB : string):boolean;
 Begin
   Result := False;
   try
-  ;
     With qCheckWSExists do
     begin
       Close;
@@ -228,9 +231,44 @@ begin
   UpdateWSMetaData;
 end;
 
+procedure TfiManWSProcessor.Button1Click(Sender: TObject);
+begin
+  qNewWSMatters.open;
+  CurrentWSID := qNewWSMatters.FieldByName('DBId').AsString + '!' + qNewWSMatters.FieldByName('FolderId').AsString;
+  rRequestLogin.Execute;
+  while not qNewWSMatters.Eof do
+  begin
+    CurrentWSID := qNewWSMatters.FieldByName('DBId').AsString + '!' + qNewWSMatters.FieldByName('FolderId').AsString;
+//  try
+    UpdateMatterWS;
+//  SetWSPerms(qNewWSMatters.FieldByName('DBId').AsString, qNewWSMatters.FieldByName('Default_Security_Group').AsString);
+    CreateWSRootFolders(qNewWSMatters.FieldByName('DBId').AsString, 'MATTER');
+    qNewWSMatters.Next;
+  end;
+  qNewWSMatters.close;
+
+end;
+
 procedure TfiManWSProcessor.Button2Click(Sender: TObject);
 begin
   test;
+end;
+
+procedure TfiManWSProcessor.Button3Click(Sender: TObject);
+begin
+  rRequestLogin.Execute;
+  qNewWSClients.Open;
+  qNewWSClients.First;
+  while not qNewWSClients.Eof do
+  begin
+//    If CreateClientWS then
+//    begin
+    CurrentWSID := qNewWSClients.FieldByName('DBId').AsString + '!' + qNewWSClients.FieldByName('FolderId').AsString;
+    UpdateClientWS;
+//    SetWSPerms(qNewWSClients.FieldByName('DBId').AsString, qNewWSClients.FieldByName('Default_Security_Group').AsString);
+//    CreateWSRootFolders(qNewWSClients.FieldByName('DBId').AsString, 'CLIENT');
+//    end
+  end;
 end;
 
 Function TfiManWSProcessor.CheckClientID(fClientID : string; fDB : string):boolean;
@@ -356,8 +394,8 @@ Begin
 
     rRequestCreate.Params.Clear;
     //Remove double quotes from name and description
-    rWSName := StringReplace(qNewWSClients.FieldByName('Name').AsString,'"','''',[rfReplaceAll]);
-    rWSDescription := StringReplace(qNewWSClients.FieldByName('Description').AsString,'"','''',[rfReplaceAll]);
+    rWSName := StringReplace(qNewWSClients.FieldByName('Name').AsString,'"','\"',[rfReplaceAll]);
+    rWSDescription := StringReplace(qNewWSClients.FieldByName('Description').AsString,'"','\"',[rfReplaceAll]);
 
     rRequestCreate.Resource := v2APIBase + qNewWSClients.FieldByName('DBId').AsString + '/workspaces';
     rBody := '{"author": "wsadmin","class": "WEBDOC","default_security": "' +
@@ -368,6 +406,7 @@ Begin
 
     rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
     rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,chr(9),'',[rfReplaceAll]);
 
     rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
@@ -458,7 +497,7 @@ Begin
     rRequestSetWSPerms.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/security';
     rBody := '{"default_security": "private", ' +
               '"include": [{ "id" : "WSADMIN", "access_level" : "full_access", "type": "user" },' +
-              '{ "id" : "' + fPermGroup + '", "access_level" : "full_access", "type" : "group" }]}';
+              '{ "id" : "' + fPermGroup + '", "access_level" : "read_write", "type" : "group" }]}';
     rRequestSetWSPerms.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestSetWSPerms.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestSetWSPerms.Execute;
@@ -472,12 +511,14 @@ Begin
       //record failure
       result := False;
       Log_Permissions := 'Status = ' + IntToStr(rResponseSetWSPerms.StatusCode);
+      Log_Extra_Data := rResponseSetWSPerms.Content;
     end;
 
     except on E: Exception do
       begin
       result := False;
       Log_Permissions := 'Status = ' + IntToStr(rResponseSetWSPerms.StatusCode);
+      Log_Extra_Data := rResponseSetWSPerms.Content;
       end;
   end;
 End;
@@ -542,11 +583,13 @@ Begin
       //record failure
       result := False;
       Log_WSRootFolders := '[Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+      Log_Extra_Data := rResponseCreate.Content;
     end;
   except on E: Exception do
     begin
       result := False;
       Log_WSRootFolders := 'Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+      Log_Extra_Data := rResponseCreate.Content;
     end;
   end;
 
@@ -576,11 +619,13 @@ Begin
         //record failure
         result := False;
         Log_WSRootFolders := '[Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+        Log_Extra_Data := rResponseCreate.Content;
       end;
     except on E: Exception do
       begin
         result := False;
         Log_WSRootFolders := '[Acc/Comp = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+        Log_Extra_Data := rResponseCreate.Content;
       end;
     end;
 
@@ -609,12 +654,14 @@ Begin
       //record failure
       result := False;
       Log_WSRootFolders := '[Documents = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+      Log_Extra_Data := Log_Extra_Data + ' || ' + rResponseCreate.Content;
     end;
 
   except on E: Exception do
     begin
       result := False;
       Log_WSRootFolders := '[Documents = ' + IntToStr(rResponseCreate.StatusCode) + ']';
+      Log_Extra_Data := Log_Extra_Data + ' || ' + rResponseCreate.Content;
     end;
   end;
 End;
@@ -631,7 +678,6 @@ begin
   CreateMatter;  
   except on E: Exception do
   end;
-
 
   try
   UpdateWSMetaData;
@@ -1045,8 +1091,8 @@ Begin
 
     rRequestCreate.Params.Clear;
     //Remove double quotes from name and description
-    rWSName := StringReplace(qNewWSMatters.FieldByName('Name').AsString,'"','''',[rfReplaceAll]);
-    rWSDescription := StringReplace(qNewWSMatters.FieldByName('Description').AsString,'"','''',[rfReplaceAll]);
+    rWSName := StringReplace(qNewWSMatters.FieldByName('Name').AsString,'"','\"',[rfReplaceAll]);     //JRR 09/06/2022 - Remove double quotes
+    rWSDescription := StringReplace(qNewWSMatters.FieldByName('Description').AsString,'"','\"',[rfReplaceAll]);
 
     rRequestCreate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces';
     rBody := '{"author": "wsadmin","class": "WEBDOC","default_security": "' +
@@ -1057,6 +1103,7 @@ Begin
 
     rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
     rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,chr(9),'',[rfReplaceAll]);
 
     rRequestCreate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestCreate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
@@ -1083,12 +1130,14 @@ Begin
       //record failure
       result := False;
       Log_Workspace_ID := 'Response = ' + IntToStr(rResponseCreate.StatusCode);
+      Log_Extra_Data := rResponseCreate.Content;
     end;
 
   except on E: Exception do
     begin
       result := False;
       Log_Workspace_ID := 'Response = ' + IntToStr(rResponseCreate.StatusCode);
+      Log_Extra_Data := rResponseCreate.Content;
     end;
   end;
 End;
@@ -1106,7 +1155,7 @@ Begin
     else
       rProspective := 'false';
     rRequestUpdate.Params.Clear;
-    rRequestUpdate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces/' + CurrentWSID;
+    rRequestUpdate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces/{CurrentWSID}'; //+ CurrentWSID;
     rBody := '{"custom1": "' +  qNewWSMatters.FieldByName('C1Alias').AsString +
               '","custom2": "' + qNewWSMatters.FieldByName('C2Alias').AsString +
               '","custom3": "' + qNewWSMatters.FieldByName('C3Alias').AsString +
@@ -1120,7 +1169,7 @@ Begin
               '","project_custom2": "' + qNewWSMatters.FieldByName('TemplateId').AsString +
               '","project_custom3": "Worksite"}';
 
-
+    rRequestUpdate.Params.AddItem('CurrentWSID', CurrentWSID, TRESTRequestPArameterKind.pkURLSEGMENT);
     rRequestUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestUpdate.Execute;
@@ -1134,12 +1183,14 @@ Begin
       //record failure
       result := False;
       Log_WS_MetaData := 'Status = ' + IntToStr(rResponseUpdate.StatusCode);
+      Log_Extra_Data := rResponseUpdate.Content;
     end;
 
   except on E: Exception do
     begin
       result := False;
       Log_WS_MetaData := 'Status = ' + IntToStr(rResponseUpdate.StatusCode);
+      Log_Extra_Data := rResponseUpdate.Content;
     end;
   end;
 End;
@@ -1314,9 +1365,46 @@ Begin
       Close;
     end;
 
+
   except on E: Exception do
   end;
 
+  try
+    //Insert new Custom6 Previous ID values
+    with qGetWSUpdateData do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Text := 'select distinct s.dbid ' +
+                  'from Staging s ' +
+                  'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                  'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ';
+      Open;
+      First;
+      while not EOF do
+      begin
+        qUpdateWSMetaData.Close;
+        qUpdateWSMetaData.SQL.Clear;
+        qUpdateWSMetaData.SQL.Text :=   'Merge Into ' + FieldByName('DBID').AsString + '.mhgroup.custom6 as c6 ' +
+                                        'Using (select distinct s.C6Alias as ALIAS ' +
+                                        'from Staging s ' +
+                                        'inner join el_update_queue uq on uq.wsid = s.wsid ' +
+                                        'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' +
+                                        //'and s.C6Alias NOT IN (SELECT CUSTOM_ALIAS FROM ' + FieldByName('DBID').AsString + '.MHGROUP.CUSTOM6) ' +
+                                        'and s.dbid = ' + QuotedStr(FieldByName('DBID').AsString) + ') as NewC ' +
+                                        'On c6.custom_alias = NewC.Alias ' +
+                                        'When Not Matched Then ' +
+	                                      'Insert (CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
+	                                      'Values ( NewC.Alias, NULL, ''Y'', GETDATE(), ''N'');';
+        qUpdateWSMetaData.Execute;
+        Next;
+      end;
+      qUpdateWSMetaData.Close;
+      Close;
+    end;
+
+  except on E: Exception do
+  end;
   try
   //Get workspaces and data to update
     with qGetWSUpdateData do
@@ -1381,12 +1469,12 @@ Begin
     else
       fCustom1 := '';
 
-    rWSName := StringReplace(qGetWSUpdateData.FieldByName('Name').AsString,'"','''',[rfReplaceAll]);
-    rWSDescription := StringReplace(qGetWSUpdateData.FieldByName('Description').AsString,'"','''',[rfReplaceAll]);
+    rWSName := StringReplace(qGetWSUpdateData.FieldByName('Name').AsString,'"','\"',[rfReplaceAll]);
+    rWSDescription := StringReplace(qGetWSUpdateData.FieldByName('Description').AsString,'"','\"',[rfReplaceAll]);
 
 
     rRequestWSUpdate.Params.Clear;
-    rRequestWSUpdate.Resource := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/workspaces/' + fWSID;
+    rRequestWSUpdate.Resource := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/workspaces/' + fWSID; //{fWSID}'; //+ fWSID;
     rBody := //'{"custom1": "' +  qGetWSUpdateData.FieldByName('C1Alias').AsString +
               '{"name": "' + rWSName +
               '","description": "' + rWSDescription +
@@ -1397,12 +1485,14 @@ Begin
               '","custom8": "' + qGetWSUpdateData.FieldByName('C8Alias').AsString +
               '","custom23": "' + qGetWSUpdateData.FieldByName('F_CDate3').AsString +
               '","custom24": "' + qGetWSUpdateData.FieldByName('F_CDate4').AsString +
-              '","custom25": "' + rProspective  + '"}';
+              '","custom25": ' + rProspective  + '}';
 
     rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
     rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,chr(9),'',[rfReplaceAll]);
 
-    rRequestWSUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY);
+    //rRequestWSUpdate.Params.AddItem('fWSID', fWSID, TRESTRequestParameterKind.pkURLSEGMENT);
+    rRequestWSUpdate.Params.AddItem('body', rBody, TRESTRequestParameterKind.pkREQUESTBODY);
     rRequestWSUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestWSUpdate.Execute;
     if rResponseWSUpdate.StatusCode = 200 then
@@ -1441,6 +1531,7 @@ Begin
 
     rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
     rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+    rBody := StringReplace(rBody,chr(9),'',[rfReplaceAll]);
 
     rRequestGetFolderID.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY);
     rRequestGetFolderID.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
@@ -1453,7 +1544,7 @@ Begin
       FolderID := ((FolderJSONArray as TJSONArray).Items[0] as TJSonObject).Get('id').JSONValue.Value;
 
       //Update Folder metadata
-      rRequestWSUpdate.Resource  := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/' + FolderID;
+      rRequestWSUpdate.Resource  := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/{FolderID}'; //+ FolderID;
       rResponseWSUpdate.Content.Empty;
       rRequestWSUpdate.Params.Clear;
 
@@ -1474,7 +1565,9 @@ Begin
 
       rBody := StringReplace(rBody,#$A,'',[rfReplaceAll]);
       rBody := StringReplace(rBody,#$D,'',[rfReplaceAll]);
+      rBody := StringReplace(rBody,chr(9),'',[rfReplaceAll]);
 
+      rRequestWSUpdate.Params.AddItem('FolderID', FolderID, TRESTRequestPArameterKind.pkURLSEGMENT);
       rRequestWSUpdate.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY);
       rRequestWSUpdate.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
       rRequestWSUpdate.Execute;
