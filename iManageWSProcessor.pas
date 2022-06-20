@@ -497,7 +497,7 @@ Begin
     rRequestSetWSPerms.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/security';
     rBody := '{"default_security": "private", ' +
               '"include": [{ "id" : "WSADMIN", "access_level" : "full_access", "type": "user" },' +
-              '{ "id" : "' + fPermGroup + '", "access_level" : "full_access", "type" : "group" }]}';
+              '{ "id" : "' + fPermGroup + '", "access_level" : "read_write", "type" : "group" }]}';
     rRequestSetWSPerms.Params.AddItem('body', rBody, TRESTRequestPArameterKind.pkREQUESTBODY); //, [TRESTRequestParameterOption.poDoNotEncode]);
     rRequestSetWSPerms.Params.ParameterByName('body').ContentType := ctAPPLICATION_JSON;
     rRequestSetWSPerms.Execute;
