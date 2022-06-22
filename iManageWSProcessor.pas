@@ -74,6 +74,7 @@ type
     Log_Workspace_ID, Log_WS_MetaData, Log_Permissions : string;
     Log_WSRootFolders, Log_Extra_Data : string;
     ExistingFolderID : string;
+    CurrCustomerID : string;
 
     Function CheckWSExists(fWSID : string; fDB : string):boolean;
     Function CheckClientID(fClientID : string; fDB : string):boolean;
@@ -110,7 +111,9 @@ var
   fiManWSProcessor: TfiManWSProcessor;
 
 const
-  v2APIBase = 'work/api/v2/customers/100/libraries/';
+  //v2APIBase = 'work/api/v2/customers/100/libraries/';
+  //JRR 22/06/2022 - Use CustomerID
+  v2APIBase = 'work/api/v2/customers/';
 
 implementation
 uses
@@ -127,6 +130,8 @@ begin
 End;
 
 Procedure TfiManWSProcessor.CreateClient();
+var
+  LogonJSONObject : TJSONObject;
 Begin
   qNewWSClients.Open;
   qNewWSClients.First;
@@ -153,6 +158,14 @@ Begin
 
         //Create new client workspace
         rRequestLogin.Execute;
+        //22/06/2022 - Get CustomerID
+        CurrCustomerID := '';
+        if rResponseLogin.StatusCode = 200 then
+        begin
+          LogonJSONObject := rResponseLogin.JSONValue as TJSONObject;
+          CurrCustomerID := LogonJSONObject.GetValue('customer_id').Value;
+        end;
+
         If CreateClientWS then
         begin
           UpdateClientWS;
@@ -397,7 +410,7 @@ Begin
     rWSName := StringReplace(qNewWSClients.FieldByName('Name').AsString,'"','\"',[rfReplaceAll]);
     rWSDescription := StringReplace(qNewWSClients.FieldByName('Description').AsString,'"','\"',[rfReplaceAll]);
 
-    rRequestCreate.Resource := v2APIBase + qNewWSClients.FieldByName('DBId').AsString + '/workspaces';
+    rRequestCreate.Resource := v2APIBase + CurrCustomerID + '/libraries/' + qNewWSClients.FieldByName('DBId').AsString + '/workspaces';
     rBody := '{"author": "wsadmin","class": "WEBDOC","default_security": "' +
             LowerCase(qNewWSClients.FieldByName('DefaultVisibility').AsString) +
             '","description": "' + rWSDescription +
@@ -454,7 +467,7 @@ Begin
     else
       rProspective := 'false';
     rRequestUpdate.Params.Clear;
-    rRequestUpdate.Resource := v2APIBase + qNewWSClients.FieldByName('DBId').AsString + '/workspaces/' + CurrentWSID;
+    rRequestUpdate.Resource := v2APIBase + CurrCustomerID + '/libraries/' + qNewWSClients.FieldByName('DBId').AsString + '/workspaces/' + CurrentWSID;
     rBody := '{"custom1": "' +  qNewWSClients.FieldByName('C1Alias').AsString +
               '","custom5": "' + qNewWSClients.FieldByName('C5Alias').AsString +
               '","custom25": "' + rProspective  +
@@ -494,7 +507,7 @@ Begin
     Result := False;
     rResponseSetWSPerms.Content.Empty;
     rRequestSetWSPerms.Params.Clear;
-    rRequestSetWSPerms.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/security';
+    rRequestSetWSPerms.Resource := v2APIBase + CurrCustomerID + '/libraries/' + fDBId + '/workspaces/' + CurrentWSID + '/security';
     rBody := '{"default_security": "private", ' +
               '"include": [{ "id" : "WSADMIN", "access_level" : "full_access", "type": "user" },' +
               '{ "id" : "' + fPermGroup + '", "access_level" : "read_write", "type" : "group" }]}';
@@ -562,7 +575,7 @@ Begin
 
     rResponseCreate.Content.Empty;
     rRequestCreate.Params.Clear;
-    rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+    rRequestCreate.Resource := v2APIBase + CurrCustomerID + '/libraries/' + fDBId + '/workspaces/' + CurrentWSID + '/folders';
     rBody := '{"name": "Accounts/Compliance", ' +
               '"description" : "Accounts/Compliance",' +
               '"default_security": "inherit",' +
@@ -596,7 +609,7 @@ Begin
   try
     rResponseCreate.Content.Empty;
     rRequestCreate.Params.Clear;
-    rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+    rRequestCreate.Resource := v2APIBase + CurrCustomerID + '/libraries/' + fDBId + '/workspaces/' + CurrentWSID + '/folders';
     rBody := '{"name": "Correspondence", ' +
               '"description" : "Correspondence",' +
               '"default_security": "inherit",' +
@@ -632,7 +645,7 @@ Begin
   try
     rResponseCreate.Content.Empty;
     rRequestCreate.Params.Clear;
-    rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+    rRequestCreate.Resource := v2APIBase + CurrCustomerID + '/libraries/' + fDBId + '/workspaces/' + CurrentWSID + '/folders';
     rBody := '{"name": "Documents", ' +
               '"description" : "Documents",' +
               '"default_security": "inherit",' +
@@ -752,7 +765,7 @@ function TfiManWSProcessor.testfoldercreate():boolean;                  }
 
     rResponseCreate.Content.Empty;
     rRequestCreate.Params.Clear;
-    rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+    rRequestCreate.Resource := v2APIBase + '100/libraries/' + fDBId + '/workspaces/' + CurrentWSID + '/folders';
     rBody := '{"name": "Accounts/Compliance", ' +
               '"description" : "Accounts/Compliance",' +
               '"default_security": "inherit",' +
@@ -784,7 +797,7 @@ function TfiManWSProcessor.testfoldercreate():boolean;                  }
   try
     rResponseCreate.Content.Empty;
     rRequestCreate.Params.Clear;
-    rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+    rRequestCreate.Resource := v2APIBase + '100/libraries/' + fDBId + '/workspaces/' + CurrentWSID + '/folders';
     rBody := '{"name": "Correspondence", ' +
               '"description" : "Correspondence",' +
               '"default_security": "inherit",' +
@@ -818,7 +831,7 @@ function TfiManWSProcessor.testfoldercreate():boolean;                  }
   try
     rResponseCreate.Content.Empty;
     rRequestCreate.Params.Clear;
-    rRequestCreate.Resource := v2APIBase + fDBId + '/workspaces/' + CurrentWSID + '/folders';
+    rRequestCreate.Resource := v2APIBase + '100/libraries/' + fDBId + '/workspaces/' + CurrentWSID + '/folders';
     rBody := '{"name": "Documents", ' +
               '"description" : "Documents",' +
               '"default_security": "inherit",' +
@@ -899,6 +912,8 @@ Begin
 End;
 
 Procedure TfiManWSProcessor.CreateMatter();
+var
+  LogonJSONObject : TJSONObject;
 Begin
   qNewWSMatters.Open;
   qNewWSMatters.First;
@@ -944,6 +959,14 @@ Begin
 
         //Create new Matter workspace
         rRequestLogin.Execute;
+        //22/06/2022 - Get CustomerID
+        CurrCustomerID := '';
+        if rResponseLogin.StatusCode = 200 then
+        begin
+          LogonJSONObject := rResponseLogin.JSONValue as TJSONObject;
+          CurrCustomerID := LogonJSONObject.GetValue('customer_id').Value;
+        end;
+
         If CreateMatterWS then
         begin
           UpdateMatterWS;
@@ -1094,7 +1117,7 @@ Begin
     rWSName := StringReplace(qNewWSMatters.FieldByName('Name').AsString,'"','\"',[rfReplaceAll]);     //JRR 09/06/2022 - Remove double quotes
     rWSDescription := StringReplace(qNewWSMatters.FieldByName('Description').AsString,'"','\"',[rfReplaceAll]);
 
-    rRequestCreate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces';
+    rRequestCreate.Resource := v2APIBase + CurrCustomerID + '/libraries/' + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces';
     rBody := '{"author": "wsadmin","class": "WEBDOC","default_security": "' +
             LowerCase(qNewWSMatters.FieldByName('DefaultVisibility').AsString) +
             '","description": "' + rWSDescription +
@@ -1155,7 +1178,7 @@ Begin
     else
       rProspective := 'false';
     rRequestUpdate.Params.Clear;
-    rRequestUpdate.Resource := v2APIBase + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces/{CurrentWSID}'; //+ CurrentWSID;
+    rRequestUpdate.Resource := v2APIBase + CurrCustomerID + '/libraries/' + qNewWSMatters.FieldByName('DBId').AsString + '/workspaces/{CurrentWSID}'; //+ CurrentWSID;
     rBody := '{"custom1": "' +  qNewWSMatters.FieldByName('C1Alias').AsString +
               '","custom2": "' + qNewWSMatters.FieldByName('C2Alias').AsString +
               '","custom3": "' + qNewWSMatters.FieldByName('C3Alias').AsString +
@@ -1196,6 +1219,8 @@ Begin
 End;
 
 Procedure TfiManWSProcessor.UpdateWSMetaData();
+var
+  LogonJSONObject : TJSONObject;
 Begin
   try
   //Insert missing clients to CUSTOM1
@@ -1391,7 +1416,8 @@ Begin
                                         'inner join el_update_queue uq on uq.wsid = s.wsid ' +
                                         'and uq.isprocessed = ''N'' and uq.ignore = ''N'' ' +
                                         //'and s.C6Alias NOT IN (SELECT CUSTOM_ALIAS FROM ' + FieldByName('DBID').AsString + '.MHGROUP.CUSTOM6) ' +
-                                        'and s.dbid = ' + QuotedStr(FieldByName('DBID').AsString) + ') as NewC ' +
+                                        'and s.dbid = ' + QuotedStr(FieldByName('DBID').AsString) +
+                                        ' where s.c6alias is not null) as NewC ' +
                                         'On c6.custom_alias = NewC.Alias ' +
                                         'When Not Matched Then ' +
 	                                      'Insert (CUSTOM_ALIAS, C_DESCRIPT, ENABLED, EDITWHEN, IS_HIPAA) ' +
@@ -1420,6 +1446,14 @@ Begin
       Open;
       First;
       rRequestLogin.Execute;
+      //22/06/2022 - Get CustomerID
+      CurrCustomerID := '';
+      if rResponseLogin.StatusCode = 200 then
+      begin
+        LogonJSONObject := rResponseLogin.JSONValue as TJSONObject;
+        CurrCustomerID := LogonJSONObject.GetValue('customer_id').Value;
+      end;
+
       while not EOF do
       begin
         If UpdateWSData Then
@@ -1474,7 +1508,7 @@ Begin
 
 
     rRequestWSUpdate.Params.Clear;
-    rRequestWSUpdate.Resource := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/workspaces/' + fWSID; //{fWSID}'; //+ fWSID;
+    rRequestWSUpdate.Resource := v2APIBase + CurrCustomerID + '/libraries/' + qGetWSUpdateData.FieldByName('DBId').AsString + '/workspaces/' + fWSID; //{fWSID}'; //+ fWSID;
     rBody := //'{"custom1": "' +  qGetWSUpdateData.FieldByName('C1Alias').AsString +
               '{"name": "' + rWSName +
               '","description": "' + rWSDescription +
@@ -1525,7 +1559,7 @@ Begin
     rResponseGetFolderID.Content.Empty;
     rRequestGetFolderID.Params.Clear;
 
-    rRequestGetFolderID.Resource := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/search';
+    rRequestGetFolderID.Resource := v2APIBase + CurrCustomerID + '/libraries/' + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/search';
     rBody := '{"filters": {"container_id": "' + rWSID +
                           '","name": "' + fFolderName + '"}}';
 
@@ -1544,7 +1578,7 @@ Begin
       FolderID := ((FolderJSONArray as TJSONArray).Items[0] as TJSonObject).Get('id').JSONValue.Value;
 
       //Update Folder metadata
-      rRequestWSUpdate.Resource  := v2APIBase + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/{FolderID}'; //+ FolderID;
+      rRequestWSUpdate.Resource  := v2APIBase + CurrCustomerID + '/libraries/' + qGetWSUpdateData.FieldByName('DBId').AsString + '/folders/{FolderID}'; //+ FolderID;
       rResponseWSUpdate.Content.Empty;
       rRequestWSUpdate.Params.Clear;
 
