@@ -175,7 +175,6 @@ object fiManWSProcessor: TfiManWSProcessor
   end
   object rResponseLogin: TRESTResponse
     ContentType = 'application/json'
-    RootElement = 'X-Auth-Token'
     Left = 240
     Top = 400
   end
